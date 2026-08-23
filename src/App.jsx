@@ -18,38 +18,10 @@ import Register from './pages/Register'
 
 function App() {
   return (
-    <Router
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true,
-      }}
-    >
+    <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-16">
-          <Toaster 
-            position="top-center"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-                borderRadius: '12px',
-                padding: '12px 16px',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#22c55e',
-                  secondary: '#fff',
-                },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#fff',
-                },
-              },
-            }}
-          />
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+          <Toaster />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />

@@ -58,12 +58,12 @@ const DailyReport = () => {
         <div className="stat-card">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Paniers moyens</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Panier moyen</p>
               <h3 className="text-2xl font-bold mt-1">0 FCFA</h3>
             </div>
             <TrendingDown className="h-5 w-5 text-yellow-500" />
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">0 clients</p>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">Moyenne</p>
         </div>
 
         <div className="stat-card">
@@ -93,9 +93,6 @@ const DailyReport = () => {
                   Référence
                 </th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Client
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
                   Montant
                 </th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -105,7 +102,7 @@ const DailyReport = () => {
             </thead>
             <tbody>
               <tr>
-                <td colSpan="5" className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <td colSpan="4" className="text-center py-8 text-gray-500 dark:text-gray-400">
                   Aucune vente pour cette journée
                 </td>
               </tr>

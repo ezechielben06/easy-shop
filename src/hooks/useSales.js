@@ -17,7 +17,6 @@ export const useSales = () => {
           sale_items (*)
         `)
 
-      // Filtres
       if (filters.dateFrom) {
         query = query.gte('created_at', filters.dateFrom)
       }
@@ -47,15 +46,12 @@ export const useSales = () => {
     try {
       setLoading(true)
       
-      // Générer un numéro de facture
       const invoiceNumber = `INV-${Date.now().toString().slice(-8)}`
       
-      // Créer la vente sans client
       const { data: sale, error: saleError } = await supabase
         .from(TABLES.SALES)
         .insert([{
           invoice_number: invoiceNumber,
-          customer_id: null, // Pas de client
           total_amount: saleData.totalAmount,
           discount: 0,
           tax: 0,
@@ -69,7 +65,6 @@ export const useSales = () => {
 
       if (saleError) throw saleError
 
-      // Ajouter les items de vente
       const saleItems = saleData.items.map(item => ({
         sale_id: sale.id,
         product_id: item.productId,
@@ -149,7 +144,6 @@ export const useSales = () => {
       const totalSales = salesData.length
       const averageTicket = totalSales > 0 ? totalRevenue / totalSales : 0
 
-      // Top produits
       const productSales = {}
       salesData.forEach(sale => {
         sale.sale_items?.forEach(item => {

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { 
   LayoutDashboard, 
   ShoppingBag, 
@@ -8,6 +8,13 @@ import {
 } from 'lucide-react'
 
 const BottomNav = () => {
+  const location = useLocation()
+  
+  // Cacher la bottom nav sur les pages d'auth
+  const hideNav = ['/login', '/register'].includes(location.pathname)
+  
+  if (hideNav) return null
+
   const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Accueil' },
     { path: '/sales', icon: ShoppingBag, label: 'Ventes' },
@@ -17,7 +24,7 @@ const BottomNav = () => {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-2 py-1 z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-2 py-1 z-50 shadow-lg">
       <div className="flex items-center justify-around max-w-md mx-auto">
         {navItems.map((item) => (
           <NavLink
@@ -32,7 +39,7 @@ const BottomNav = () => {
             }
           >
             <item.icon className="h-6 w-6 mb-0.5" />
-            <span className="text-[10px]">{item.label}</span>
+            <span className="text-[10px] font-medium">{item.label}</span>
           </NavLink>
         ))}
       </div>

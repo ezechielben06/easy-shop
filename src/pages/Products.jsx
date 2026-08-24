@@ -35,7 +35,6 @@ const Products = () => {
     name: '',
     description: '',
     price: '',
-    cost_price: '',
     quantity: '',
     min_quantity: '5',
     category: '',
@@ -90,7 +89,6 @@ const Products = () => {
       description: formData.description?.trim() || '',
       category: formData.category?.trim() || null,
       price: parseFloat(formData.price),
-      cost_price: parseFloat(formData.cost_price) || 0,
       quantity: parseInt(formData.quantity) || 0,
       min_quantity: parseInt(formData.min_quantity) || 5,
       image_url: null
@@ -172,7 +170,6 @@ const Products = () => {
       name: '',
       description: '',
       price: '',
-      cost_price: '',
       quantity: '',
       min_quantity: '5',
       category: '',
@@ -187,7 +184,6 @@ const Products = () => {
       name: product.name,
       description: product.description || '',
       price: product.price.toString(),
-      cost_price: product.cost_price?.toString() || '',
       quantity: product.quantity.toString(),
       min_quantity: product.min_quantity?.toString() || '5',
       category: product.category || '',
@@ -328,18 +324,6 @@ const Products = () => {
                   step="10"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  className="input-field"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="input-label">Prix d'achat (FCFA)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="10"
-                  value={formData.cost_price}
-                  onChange={(e) => setFormData({ ...formData, cost_price: e.target.value })}
                   className="input-field"
                   placeholder="0"
                 />

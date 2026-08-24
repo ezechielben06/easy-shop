@@ -12,7 +12,10 @@ import {
   ShoppingBag,
   X,
   Minus,
-  Check
+  Check,
+  CreditCard,
+  Wallet,
+  Calendar
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -25,6 +28,8 @@ const NewSale = () => {
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [showSearchResults, setShowSearchResults] = useState(false)
+  const [isCredit, setIsCredit] = useState(false)
+  const [dueDate, setDueDate] = useState('')
   const searchRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -118,16 +123,19 @@ const NewSale = () => {
       return
     }
 
+    if (isCredit && !dueDate) {
+      toast.error('Veuillez sélectionner une date d\'échéance')
+      return
+    }
+
     const total = calculateTotal()
     
     const saleData = {
-      customerId: null,
       items: saleItems,
       totalAmount: total,
-      discount: 0,
-      tax: 0,
       grandTotal: total,
-      paymentMethod: 'cash'
+      isCredit: isCredit,
+      dueDate: isCredit ? dueDate : null
     }
 
     setLoading(true)
@@ -135,7 +143,6 @@ const NewSale = () => {
     setLoading(false)
 
     if (result) {
-      toast.success(`Vente ${result.invoice_number} enregistrée !`, { icon: '🎉' })
       navigate('/sales')
     }
   }
@@ -184,6 +191,54 @@ const NewSale = () => {
       </div>
 
       <div className="px-4 py-4 max-w-2xl mx-auto">
+        {/* Type de vente - Cash ou Crédit */}
+        <div className="card mb-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Type de vente :</span>
+            <button
+              onClick={() => setIsCredit(false)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
+                !isCredit 
+                  ? 'bg-blue-500 text-white shadow-md' 
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              <Wallet className="h-4 w-4" />
+              <span>Espèces</span>
+            </button>
+            <button
+              onClick={() => setIsCredit(true)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
+                isCredit 
+                  ? 'bg-orange-500 text-white shadow-md' 
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              <CreditCard className="h-4 w-4" />
+              <span>Crédit</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Date d'échéance pour le crédit */}
+        {isCredit && (
+          <div className="card mb-4 border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/10">
+            <div className="flex items-center gap-3">
+              <Calendar className="h-5 w-5 text-orange-500" />
+              <div className="flex-1">
+                <label className="input-label text-orange-700 dark:text-orange-300">Date d'échéance *</label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="input-field"
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Recherche */}
         <div ref={searchRef} className="relative z-50">
           <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
@@ -296,25 +351,6 @@ const NewSale = () => {
               </div>
             )}
           </div>
-
-          {/* Suggestions */}
-          {!searchTerm && !showSearchResults && products.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="text-xs text-gray-400 dark:text-gray-500 mr-1">Suggestions :</span>
-              {products.slice(0, 3).map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    setSearchTerm(p.name)
-                    setShowSearchResults(true)
-                  }}
-                  className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-3 py-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Stats rapides */}
@@ -327,10 +363,10 @@ const NewSale = () => {
             <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
             <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{total.toLocaleString()} FCFA</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Moyenne</p>
-            <p className="text-lg font-bold text-green-600 dark:text-green-400">
-              {saleItems.length > 0 ? Math.round(total / saleItems.length).toLocaleString() : '0'} FCFA
+          <div className={`bg-white dark:bg-gray-800 rounded-xl p-3 border ${isCredit ? 'border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+            <p className={`text-lg font-bold ${isCredit ? 'text-orange-500' : 'text-green-500'}`}>
+              {isCredit ? '📝 Crédit' : '💵 Espèces'}
             </p>
           </div>
         </div>
@@ -413,7 +449,7 @@ const NewSale = () => {
         </div>
       </div>
 
-      {/* Barre de validation - avec marge pour la bottom nav */}
+      {/* Barre de validation */}
       <div className="fixed bottom-16 left-0 right-0 z-20 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 shadow-lg">
         <div className="px-4 py-3 max-w-2xl mx-auto">
           <div className="flex items-center gap-4">
@@ -422,10 +458,13 @@ const NewSale = () => {
               <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
                 {total.toLocaleString()} FCFA
               </p>
+              {isCredit && (
+                <p className="text-xs text-orange-500">📝 Crédit - Échéance: {dueDate ? new Date(dueDate).toLocaleDateString() : 'À définir'}</p>
+              )}
             </div>
             <button
               onClick={handleSubmit}
-              disabled={loading || saleItems.length === 0}
+              disabled={loading || saleItems.length === 0 || (isCredit && !dueDate)}
               className={`
                 flex-1 sm:flex-none btn-success flex items-center justify-center gap-2 text-base py-3 px-8 rounded-2xl font-semibold
                 transition-all duration-300
@@ -440,7 +479,7 @@ const NewSale = () => {
               ) : (
                 <>
                   <Check className="h-5 w-5" />
-                  Valider
+                  {isCredit ? 'Vendre à crédit' : 'Valider la vente'}
                 </>
               )}
             </button>

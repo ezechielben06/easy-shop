@@ -7,7 +7,9 @@ import {
   Package,
   AlertTriangle,
   ArrowRight,
-  Loader2
+  Loader2,
+  CreditCard,
+  Wallet
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -16,7 +18,14 @@ import { Link } from 'react-router-dom'
 const Dashboard = () => {
   const { getDailySales, getSalesStats } = useSales()
   const { products, fetchProducts } = useProducts()
-  const [todayStats, setTodayStats] = useState({ total: 0, count: 0 })
+  const [todayStats, setTodayStats] = useState({ 
+    total: 0, 
+    count: 0, 
+    cashTotal: 0, 
+    cashCount: 0, 
+    creditTotal: 0, 
+    creditCount: 0 
+  })
   const [monthlyStats, setMonthlyStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [lowStockProducts, setLowStockProducts] = useState([])
@@ -79,27 +88,31 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Stats du jour */}
+      {/* Stats du jour avec distinction Espèces/Crédit */}
       <div className="grid grid-cols-2 gap-3 px-4">
         <div className="stat-card">
           <div className="flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5 text-blue-500" />
-            <span className="text-sm text-gray-600 dark:text-gray-400">Ventes</span>
+            <Wallet className="h-5 w-5 text-green-500" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">Espèces</span>
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-            {todayStats.count}
+            {todayStats.cashCount}
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">aujourd'hui</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {todayStats.cashTotal.toLocaleString()} FCFA
+          </p>
         </div>
-        <div className="stat-card">
+        <div className="stat-card border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/10">
           <div className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-green-500" />
-            <span className="text-sm text-gray-600 dark:text-gray-400">CA</span>
+            <CreditCard className="h-5 w-5 text-orange-500" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">Crédit</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-            {todayStats.total.toLocaleString()}
+          <p className="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-1">
+            {todayStats.creditCount}
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">FCFA</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {todayStats.creditTotal.toLocaleString()} FCFA
+          </p>
         </div>
       </div>
 
@@ -111,19 +124,19 @@ const Dashboard = () => {
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {monthlyStats?.totalSales || 0}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Ventes du mois</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Total ventes</p>
             </div>
             <div className="text-center border-x dark:border-gray-700">
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {monthlyStats?.totalRevenue?.toLocaleString() || 0}
+                {monthlyStats?.cashTotal?.toLocaleString() || 0}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">CA mensuel</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Espèces</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {monthlyStats?.averageTicket?.toLocaleString() || 0}
+              <p className="text-2xl font-bold text-orange-500">
+                {monthlyStats?.creditTotal?.toLocaleString() || 0}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Panier moyen</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Crédit</p>
             </div>
           </div>
         </div>

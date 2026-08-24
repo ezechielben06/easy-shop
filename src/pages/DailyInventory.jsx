@@ -9,9 +9,12 @@ import {
   Save,
   Package,
   Calendar,
-  Loader2
+  Loader2,
+  TrendingUp,
+  TrendingDown,
+  BarChart3
 } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
+import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 
@@ -37,7 +40,6 @@ const DailyInventory = () => {
 
   const loadTodayInventory = async () => {
     try {
-      // Utiliser maybeSingle au lieu de single pour éviter l'erreur 406
       const { data, error } = await supabase
         .from('daily_inventory')
         .select('*')
@@ -77,7 +79,6 @@ const DailyInventory = () => {
     }
   }
 
-  // Recharger quand la date change
   useEffect(() => {
     if (products.length > 0) {
       loadTodayInventory()
@@ -124,7 +125,6 @@ const DailyInventory = () => {
         completed_at: new Date().toISOString()
       }
 
-      // Vérifier si un inventaire existe déjà
       const { data: existing } = await supabase
         .from('daily_inventory')
         .select('id')
@@ -145,7 +145,6 @@ const DailyInventory = () => {
 
       if (result.error) throw result.error
 
-      // Mettre à jour les stocks des produits
       for (const item of inventoryItems) {
         if (item.difference !== 0) {
           await supabase
@@ -179,92 +178,92 @@ const DailyInventory = () => {
   if (isLoading || loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
+        <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-4 pb-32 animate-slide-up">
+    <div className="space-y-6 pb-32 animate-fade-in">
       {/* Header */}
-      <div className="card">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-              <ClipboardList className="h-6 w-6 text-blue-500" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                Inventaire Journalier
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {format(parseISO(inventoryDate), 'EEEE d MMMM yyyy', { locale: fr })}
-              </p>
-            </div>
-          </div>
-          <input
-            type="date"
-            value={inventoryDate}
-            onChange={(e) => setInventoryDate(e.target.value)}
-            className="input-field text-sm py-2 w-32"
-          />
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <ClipboardList className="h-6 w-6 text-blue-500" />
+            Inventaire Journalier
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            {format(new Date(inventoryDate), 'EEEE d MMMM yyyy', { locale: fr })}
+          </p>
         </div>
+        <input
+          type="date"
+          value={inventoryDate}
+          onChange={(e) => setInventoryDate(e.target.value)}
+          className="input w-40"
+        />
+      </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-2 mt-4">
-          <div className="text-center p-2 bg-gray-50 dark:bg-gray-800 rounded-xl">
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="stat-card">
+          <div className="text-center">
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
           </div>
-          <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-xl">
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.verified}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">OK</p>
-          </div>
-          <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl">
-            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.discrepancies}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Écarts</p>
-          </div>
-          <div className="text-center p-2 bg-red-50 dark:bg-red-900/20 rounded-xl">
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.pending}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">En attente</p>
+        </div>
+        <div className="stat-card border-emerald-200/60 dark:border-emerald-800/30 bg-emerald-50/30 dark:bg-emerald-900/5">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.verified}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">✅ OK</p>
           </div>
         </div>
-
-        {completed && (
-          <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-500" />
-            <span className="text-sm text-green-700 dark:text-green-300">
-              Inventaire terminé
-            </span>
+        <div className="stat-card border-orange-200/60 dark:border-orange-800/30 bg-orange-50/30 dark:bg-orange-900/5">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-orange-500">{stats.discrepancies}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">⚠️ Écarts</p>
           </div>
-        )}
+        </div>
+        <div className="stat-card border-red-200/60 dark:border-red-800/30 bg-red-50/30 dark:bg-red-900/5">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-red-500">{stats.pending}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">⏳ En attente</p>
+          </div>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="px-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Rechercher un produit..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="input-field pl-10"
-          />
+      {completed && (
+        <div className="card p-4 border-emerald-200/60 dark:border-emerald-800/30 bg-emerald-50/30 dark:bg-emerald-900/5 flex items-center gap-3">
+          <CheckCircle className="h-5 w-5 text-emerald-500" />
+          <span className="text-sm text-emerald-700 dark:text-emerald-300">
+            Inventaire terminé à {format(new Date(), 'HH:mm')}
+          </span>
         </div>
+      )}
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Rechercher un produit..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="input pl-9"
+        />
       </div>
 
       {/* Inventory List */}
-      <div className="space-y-2 px-4">
-        {filteredItems.length === 0 ? (
-          <div className="card text-center py-8">
-            <Package className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-            <p className="text-gray-500 dark:text-gray-400">Aucun produit trouvé</p>
-          </div>
-        ) : (
-          filteredItems.map((item) => (
-            <div key={item.product_id} className="inventory-item">
-              <div className="flex-1">
+      {filteredItems.length === 0 ? (
+        <div className="card p-12 text-center">
+          <Package className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+          <p className="text-gray-500 dark:text-gray-400 font-medium">Aucun produit trouvé</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredItems.map((item) => (
+            <div key={item.product_id} className="card p-4 flex items-center justify-between hover:shadow-md transition-shadow">
+              <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-900 dark:text-white text-sm">
                   {item.product_name}
                 </p>
@@ -272,50 +271,54 @@ const DailyInventory = () => {
                   Stock théorique: {item.expected_quantity}
                 </p>
                 {item.status === 'discrepancy' && (
-                  <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                  <p className="text-xs text-orange-500 mt-0.5">
                     Écart: {item.difference > 0 ? '+' : ''}{item.difference}
                   </p>
                 )}
               </div>
-              <div className="inventory-count">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => updateInventoryCount(item.product_id, item.actual_quantity - 1)}
-                  className="minus"
+                  className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center text-xl font-bold"
                   disabled={completed}
                 >
                   −
                 </button>
-                <span className="count">{item.actual_quantity}</span>
+                <span className="w-12 text-center text-xl font-bold text-gray-900 dark:text-white">
+                  {item.actual_quantity}
+                </span>
                 <button
                   onClick={() => updateInventoryCount(item.product_id, item.actual_quantity + 1)}
-                  className="plus"
+                  className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors flex items-center justify-center text-xl font-bold"
                   disabled={completed}
                 >
                   +
                 </button>
               </div>
               {item.status === 'correct' && (
-                <CheckCircle className="h-5 w-5 text-green-500 ml-2" />
+                <CheckCircle className="h-5 w-5 text-emerald-500 ml-2" />
               )}
               {item.status === 'discrepancy' && (
-                <AlertCircle className="h-5 w-5 text-yellow-500 ml-2" />
+                <AlertCircle className="h-5 w-5 text-orange-500 ml-2" />
               )}
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Save Button */}
       {!completed && inventoryItems.length > 0 && (
-        <div className="fixed bottom-16 left-0 right-0 p-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 z-20">
-          <button
-            onClick={saveInventory}
-            disabled={saving}
-            className="btn-success flex items-center justify-center gap-2 w-full"
-          >
-            <Save className="h-5 w-5" />
-            {saving ? 'Enregistrement...' : 'Enregistrer l\'inventaire'}
-          </button>
+        <div className="fixed bottom-20 left-0 right-0 p-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-700 z-20">
+          <div className="max-w-7xl mx-auto px-4">
+            <button
+              onClick={saveInventory}
+              disabled={saving}
+              className="btn-success w-full flex items-center justify-center gap-2 py-3 text-base"
+            >
+              <Save className="h-5 w-5" />
+              {saving ? 'Enregistrement...' : 'Enregistrer l\'inventaire'}
+            </button>
+          </div>
         </div>
       )}
     </div>

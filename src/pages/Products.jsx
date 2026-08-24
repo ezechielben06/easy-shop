@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useProducts } from '../hooks/useProducts'
 import ImageUpload from '../components/products/ImageUpload'
 import { supabase } from '../lib/supabaseClient'
@@ -14,11 +14,11 @@ import {
   Loader2,
   Grid,
   List,
-  Filter,
   ChevronDown,
   TrendingUp,
   DollarSign,
-  ShoppingBag
+  ShoppingBag,
+  Filter
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -27,7 +27,7 @@ const Products = () => {
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [viewMode, setViewMode] = useState('grid') // 'grid' ou 'list'
+  const [viewMode, setViewMode] = useState('grid')
   const [filterCategory, setFilterCategory] = useState('all')
   const [sortBy, setSortBy] = useState('name')
   const [tempImageData, setTempImageData] = useState(null)
@@ -45,10 +45,8 @@ const Products = () => {
     fetchProducts()
   }, [])
 
-  // Récupérer les catégories uniques
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))]
 
-  // Filtrer et trier les produits
   const filteredProducts = products
     .filter(product => {
       const matchSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -199,66 +197,89 @@ const Products = () => {
     }
   }
 
-  // Statistiques
   const totalProducts = products.length
   const totalStock = products.reduce((sum, p) => sum + p.quantity, 0)
   const totalValue = products.reduce((sum, p) => sum + (p.price * p.quantity), 0)
   const lowStockCount = products.filter(p => p.quantity <= p.min_quantity).length
 
   return (
-    <div className="space-y-4 pb-20 animate-slide-up">
-      {/* Header avec statistiques */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              Catalogue Produits
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Gérez votre inventaire en temps réel
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              setEditingProduct(null)
-              resetForm()
-              setShowForm(!showForm)
-            }}
-            className="btn-primary flex items-center gap-2 text-sm py-2 px-4 shadow-lg hover:shadow-xl transition-all"
-          >
-            <Plus className="h-4 w-4" />
-            Nouveau produit
-          </button>
+    <div className="space-y-6 pb-24 animate-fade-in">
+      {/* Header avec stats */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Produits
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            Gérez votre catalogue produits
+          </p>
         </div>
+        <button
+          onClick={() => {
+            setEditingProduct(null)
+            resetForm()
+            setShowForm(!showForm)
+          }}
+          className="btn-primary"
+        >
+          <Plus className="h-4 w-4" />
+          Nouveau produit
+        </button>
+      </div>
 
-        {/* Stats rapides */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 text-center">
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalProducts}</p>
-            <p className="text-xs text-gray-600 dark:text-gray-400">Total produits</p>
+      {/* Stats rapides */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="stat-card">
+          <div className="flex items-center gap-3">
+            <div className="stat-icon">
+              <Package className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="stat-label">Total produits</p>
+              <p className="stat-value">{totalProducts}</p>
+            </div>
           </div>
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3 text-center">
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{totalStock}</p>
-            <p className="text-xs text-gray-600 dark:text-gray-400">En stock</p>
+        </div>
+        <div className="stat-card">
+          <div className="flex items-center gap-3">
+            <div className="stat-icon bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+              <ShoppingBag className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="stat-label">En stock</p>
+              <p className="stat-value">{totalStock}</p>
+            </div>
           </div>
-          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-3 text-center">
-            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-              {totalValue.toLocaleString()} FCFA
-            </p>
-            <p className="text-xs text-gray-600 dark:text-gray-400">Valeur totale</p>
+        </div>
+        <div className="stat-card">
+          <div className="flex items-center gap-3">
+            <div className="stat-icon bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400">
+              <DollarSign className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="stat-label">Valeur totale</p>
+              <p className="stat-value">{totalValue.toLocaleString()} FCFA</p>
+            </div>
           </div>
-          <div className={`${lowStockCount > 0 ? 'bg-orange-50 dark:bg-orange-900/20' : 'bg-gray-50 dark:bg-gray-800'} rounded-xl p-3 text-center`}>
-            <p className={`text-2xl font-bold ${lowStockCount > 0 ? 'text-orange-500' : 'text-gray-500'}`}>
-              {lowStockCount}
-            </p>
-            <p className="text-xs text-gray-600 dark:text-gray-400">Stock faible</p>
+        </div>
+        <div className="stat-card">
+          <div className="flex items-center gap-3">
+            <div className={`stat-icon ${lowStockCount > 0 ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : 'bg-gray-50 dark:bg-gray-800 text-gray-400'}`}>
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="stat-label">Stock faible</p>
+              <p className={`stat-value ${lowStockCount > 0 ? 'text-orange-500' : 'text-gray-400'}`}>
+                {lowStockCount}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Formulaire */}
       {showForm && (
-        <div className="card animate-slide-up border-2 border-blue-200 dark:border-blue-800">
+        <div className="card p-6 border-blue-200/60 dark:border-blue-800/30 bg-blue-50/30 dark:bg-blue-900/5">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Package className="h-5 w-5 text-blue-500" />
@@ -270,7 +291,7 @@ const Products = () => {
                 setEditingProduct(null)
                 resetForm()
               }}
-              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
@@ -278,7 +299,6 @@ const Products = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Image */}
               <div className="md:col-span-2">
                 <label className="input-label">Image du produit</label>
                 <ImageUpload
@@ -295,7 +315,7 @@ const Products = () => {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="input-field"
+                  className="input"
                   placeholder="Ex: T-shirt Premium"
                 />
               </div>
@@ -305,7 +325,7 @@ const Products = () => {
                   type="text"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="input-field"
+                  className="input"
                   placeholder="Ex: Vêtements, Électronique..."
                   list="categories-list"
                 />
@@ -324,7 +344,7 @@ const Products = () => {
                   step="10"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  className="input-field"
+                  className="input"
                   placeholder="0"
                 />
               </div>
@@ -336,7 +356,7 @@ const Products = () => {
                   min="0"
                   value={formData.quantity}
                   onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  className="input-field"
+                  className="input"
                   placeholder="0"
                 />
               </div>
@@ -348,7 +368,7 @@ const Products = () => {
                   min="1"
                   value={formData.min_quantity}
                   onChange={(e) => setFormData({ ...formData, min_quantity: e.target.value })}
-                  className="input-field"
+                  className="input"
                   placeholder="5"
                 />
               </div>
@@ -357,7 +377,7 @@ const Products = () => {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="input-field"
+                  className="input"
                   rows="3"
                   placeholder="Description du produit..."
                 />
@@ -392,7 +412,7 @@ const Products = () => {
       )}
 
       {/* Filtres et recherche */}
-      <div className="card">
+      <div className="card p-4">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -401,15 +421,15 @@ const Products = () => {
               placeholder="Rechercher un produit..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field pl-9 py-2 text-sm"
+              className="input pl-9"
             />
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="input-field py-2 text-sm min-w-[120px]"
+              className="input min-w-[130px]"
             >
               <option value="all">Toutes catégories</option>
               {categories.map(cat => (
@@ -420,23 +440,23 @@ const Products = () => {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="input-field py-2 text-sm min-w-[100px]"
+              className="input min-w-[100px]"
             >
               <option value="name">Nom</option>
               <option value="price">Prix</option>
               <option value="stock">Stock</option>
             </select>
 
-            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-gray-600 shadow' : ''}`}
+                className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-gray-700 shadow' : ''}`}
               >
                 <Grid className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-600 shadow' : ''}`}
+                className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-700 shadow' : ''}`}
               >
                 <List className="h-4 w-4" />
               </button>
@@ -448,11 +468,11 @@ const Products = () => {
       {/* Liste des produits */}
       {loading ? (
         <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+          <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
         </div>
       ) : filteredProducts.length === 0 ? (
-        <div className="card text-center py-12">
-          <Package className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+        <div className="card p-12 text-center">
+          <Package className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
           <p className="text-gray-500 dark:text-gray-400 font-medium">
             {searchTerm ? 'Aucun produit trouvé' : 'Aucun produit disponible'}
           </p>
@@ -463,7 +483,7 @@ const Products = () => {
                 resetForm()
                 setShowForm(true)
               }}
-              className="btn-primary mt-4 inline-flex items-center gap-2"
+              className="btn-primary mt-4"
             >
               <Plus className="h-4 w-4" />
               Ajouter votre premier produit
@@ -471,13 +491,12 @@ const Products = () => {
           )}
         </div>
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredProducts.map((product) => (
             <div
               key={product.id}
-              className="card p-3 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
+              className="card p-4 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
             >
-              {/* Image */}
               <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700">
                 {product.image_url ? (
                   <img
@@ -492,20 +511,19 @@ const Products = () => {
                   </div>
                 )}
                 {product.quantity <= product.min_quantity && (
-                  <div className="absolute top-2 right-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <div className="absolute top-2 right-2 badge-red flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
                     Stock faible
                   </div>
                 )}
               </div>
 
-              {/* Infos */}
               <div className="mt-3">
                 <h4 className="font-semibold text-gray-900 dark:text-white truncate text-sm">
                   {product.name}
                 </h4>
                 {product.category && (
-                  <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">
+                  <span className="badge-blue text-xs">
                     {product.category}
                   </span>
                 )}
@@ -513,21 +531,21 @@ const Products = () => {
                   <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
                     {product.price.toLocaleString()} FCFA
                   </span>
-                  <span className={`text-xs ${product.quantity <= product.min_quantity ? 'text-orange-500' : 'text-green-500'}`}>
+                  <span className={`text-xs ${product.quantity <= product.min_quantity ? 'text-orange-500' : 'text-emerald-500'}`}>
                     Stock: {product.quantity}
                   </span>
                 </div>
-                <div className="flex gap-1 mt-2">
+                <div className="flex gap-2 mt-3">
                   <button
                     onClick={() => handleEdit(product)}
-                    className="flex-1 btn-secondary text-xs py-1 px-2 flex items-center justify-center gap-1"
+                    className="flex-1 btn-secondary text-xs py-1.5"
                   >
                     <Edit2 className="h-3 w-3" />
                     Modifier
                   </button>
                   <button
                     onClick={() => handleDelete(product.id)}
-                    className="btn-danger text-xs py-1 px-2 flex items-center justify-center gap-1"
+                    className="btn-danger text-xs py-1.5 px-3"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -537,74 +555,76 @@ const Products = () => {
           ))}
         </div>
       ) : (
-        <div className="space-y-2">
-          {filteredProducts.map((product) => (
-            <div
-              key={product.id}
-              className="card p-3 hover:shadow-md transition-shadow flex items-center gap-4"
-            >
-              {/* Image */}
-              <div className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700">
-                {product.image_url ? (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.target.style.display = 'none' }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Package className="h-6 w-6 text-gray-400" />
-                  </div>
-                )}
-              </div>
-
-              {/* Infos */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-semibold text-gray-900 dark:text-white truncate">
-                    {product.name}
-                  </h4>
-                  {product.category && (
-                    <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full flex-shrink-0">
-                      {product.category}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-3 mt-1">
-                  <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                    {product.price.toLocaleString()} FCFA
-                  </span>
-                  <span className="text-xs text-gray-400">•</span>
-                  <span className={`text-xs ${product.quantity <= product.min_quantity ? 'text-orange-500' : 'text-green-500'}`}>
-                    Stock: {product.quantity}
-                  </span>
-                  {product.quantity <= product.min_quantity && (
-                    <span className="text-xs text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      Stock faible
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-1">
-                <button
-                  onClick={() => handleEdit(product)}
-                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <Edit2 className="h-4 w-4 text-gray-500" />
-                </button>
-                <button
-                  onClick={() => handleDelete(product.id)}
-                  className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                >
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="card overflow-hidden">
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Catégorie</th>
+                  <th className="text-right">Prix</th>
+                  <th className="text-right">Stock</th>
+                  <th className="text-right">Statut</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.map((product) => (
+                  <tr key={product.id}>
+                    <td>
+                      <div className="flex items-center gap-3">
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="w-10 h-10 object-cover rounded-lg"
+                            onError={(e) => { e.target.style.display = 'none' }}
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                            <Package className="h-5 w-5 text-gray-400" />
+                          </div>
+                        )}
+                        <span className="font-medium">{product.name}</span>
+                      </div>
+                    </td>
+                    <td>{product.category || '-'}</td>
+                    <td className="text-right font-medium text-blue-600 dark:text-blue-400">
+                      {product.price.toLocaleString()} FCFA
+                    </td>
+                    <td className="text-right">
+                      <span className={product.quantity <= product.min_quantity ? 'text-orange-500' : 'text-emerald-500'}>
+                        {product.quantity}
+                      </span>
+                    </td>
+                    <td className="text-right">
+                      {product.quantity <= product.min_quantity ? (
+                        <span className="badge-red">⚠️ Stock faible</span>
+                      ) : (
+                        <span className="badge-green">✅ OK</span>
+                      )}
+                    </td>
+                    <td className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                        >
+                          <Edit2 className="h-4 w-4 text-gray-500" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

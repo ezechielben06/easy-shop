@@ -14,7 +14,16 @@ export const useSales = () => {
         .from(TABLES.SALES)
         .select(`
           *,
-          sale_items (*)
+          sale_items (
+            *,
+            products (
+              id,
+              name,
+              image_url,
+              price,
+              category
+            )
+          )
         `)
 
       if (filters.dateFrom) {
@@ -138,7 +147,18 @@ export const useSales = () => {
 
       const { data, error } = await supabase
         .from(TABLES.SALES)
-        .select('*')
+        .select(`
+          *,
+          sale_items (
+            *,
+            products (
+              id,
+              name,
+              image_url,
+              price
+            )
+          )
+        `)
         .gte('created_at', startOfDay.toISOString())
         .lte('created_at', endOfDay.toISOString())
         .eq('status', 'completed')
@@ -174,7 +194,12 @@ export const useSales = () => {
             product_id,
             quantity,
             total_price,
-            products (name)
+            products (
+              id,
+              name,
+              image_url,
+              price
+            )
           )
         `)
         .gte('created_at', startDate)
@@ -202,8 +227,16 @@ export const useSales = () => {
       salesData.forEach(sale => {
         sale.sale_items?.forEach(item => {
           const productName = item.products?.name || 'Produit inconnu'
+          const productImage = item.products?.image_url || null
           if (!productSales[productName]) {
-            productSales[productName] = { quantity: 0, total: 0, credit: 0, cash: 0 }
+            productSales[productName] = { 
+              quantity: 0, 
+              total: 0, 
+              credit: 0, 
+              cash: 0,
+              image: productImage,
+              price: item.products?.price || 0
+            }
           }
           productSales[productName].quantity += item.quantity || 0
           productSales[productName].total += item.total_price || 0
@@ -216,7 +249,10 @@ export const useSales = () => {
       })
 
       const topProducts = Object.entries(productSales)
-        .map(([name, data]) => ({ name, ...data }))
+        .map(([name, data]) => ({ 
+          name, 
+          ...data 
+        }))
         .sort((a, b) => b.quantity - a.quantity)
         .slice(0, 5)
 

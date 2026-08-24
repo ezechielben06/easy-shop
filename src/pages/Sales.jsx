@@ -13,20 +13,50 @@ import {
   Eye,
   Calendar,
   Clock,
-  DollarSign
+  DollarSign,
+  Filter,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, startOfDay, endOfDay, subDays, addDays, isToday, isYesterday } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
 const Sales = () => {
   const { sales, loading, fetchSales } = useSales()
   const [searchTerm, setSearchTerm] = useState('')
   const [expandedSale, setExpandedSale] = useState(null)
-  const [filterType, setFilterType] = useState('all') // 'all', 'cash', 'credit'
+  const [filterType, setFilterType] = useState('all')
+  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [viewMode, setViewMode] = useState('day') // 'day', 'week', 'month'
 
   useEffect(() => {
-    fetchSales()
-  }, [])
+    loadSales()
+  }, [selectedDate, viewMode])
+
+  const loadSales = async () => {
+    let dateFrom, dateTo
+    
+    if (viewMode === 'day') {
+      dateFrom = startOfDay(selectedDate).toISOString()
+      dateTo = endOfDay(selectedDate).toISOString()
+    } else if (viewMode === 'week') {
+      const start = new Date(selectedDate)
+      start.setDate(start.getDate() - start.getDay())
+      dateFrom = startOfDay(start).toISOString()
+      const end = new Date(start)
+      end.setDate(end.getDate() + 6)
+      dateTo = endOfDay(end).toISOString()
+    } else {
+      const start = new Date(selectedDate)
+      start.setDate(1)
+      dateFrom = startOfDay(start).toISOString()
+      const end = new Date(selectedDate)
+      end.setMonth(end.getMonth() + 1, 0)
+      dateTo = endOfDay(end).toISOString()
+    }
+    
+    await fetchSales({ dateFrom, dateTo })
+  }
 
   const filteredSales = sales.filter(sale => {
     const matchSearch = sale.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -36,13 +66,27 @@ const Sales = () => {
     return matchSearch && matchFilter
   })
 
+  const changeDate = (days) => {
+    setSelectedDate(prev => {
+      const newDate = new Date(prev)
+      newDate.setDate(newDate.getDate() + days)
+      return newDate
+    })
+  }
+
+  const getDateLabel = () => {
+    if (isToday(selectedDate)) return "Aujourd'hui"
+    if (isYesterday(selectedDate)) return 'Hier'
+    return format(selectedDate, 'EEEE d MMMM yyyy', { locale: fr })
+  }
+
   const formatDate = (date) => {
     return format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: fr })
   }
 
   const getCreditStatusColor = (status) => {
     switch(status) {
-      case 'paid': return 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+      case 'paid': return 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
       case 'overdue': return 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
       default: return 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
     }
@@ -57,30 +101,28 @@ const Sales = () => {
   }
 
   return (
-    <div className="space-y-4 pb-20 animate-slide-up">
+    <div className="space-y-6 pb-24 animate-fade-in">
       {/* Header */}
-      <div className="card">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              Ventes
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {sales.length} vente{sales.length > 1 ? 's' : ''} enregistrée{sales.length > 1 ? 's' : ''}
-            </p>
-          </div>
-          <Link
-            to="/sales/new"
-            className="btn-primary flex items-center gap-2 text-sm py-2 px-4"
-          >
-            <Plus className="h-4 w-4" />
-            Nouvelle vente
-          </Link>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Ventes
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            {sales.length} vente{sales.length > 1 ? 's' : ''} enregistrée{sales.length > 1 ? 's' : ''}
+          </p>
         </div>
+        <Link
+          to="/sales/new"
+          className="btn-primary"
+        >
+          <Plus className="h-4 w-4" />
+          Nouvelle vente
+        </Link>
       </div>
 
-      {/* Filtres */}
-      <div className="card">
+      {/* Filtres et navigation */}
+      <div className="card p-4">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -89,15 +131,16 @@ const Sales = () => {
               placeholder="Rechercher par numéro de facture..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field pl-9 py-2 text-sm"
+              className="input pl-9"
             />
           </div>
-          <div className="flex gap-2">
+          
+          <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setFilterType('all')}
               className={`px-3 py-2 rounded-xl text-sm transition-all ${
                 filterType === 'all'
-                  ? 'bg-blue-500 text-white'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
@@ -107,7 +150,7 @@ const Sales = () => {
               onClick={() => setFilterType('cash')}
               className={`px-3 py-2 rounded-xl text-sm transition-all flex items-center gap-1 ${
                 filterType === 'cash'
-                  ? 'bg-green-500 text-white'
+                  ? 'bg-emerald-600 text-white'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
@@ -127,20 +170,77 @@ const Sales = () => {
             </button>
           </div>
         </div>
+
+        {/* Navigation par date */}
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => changeDate(-1)}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-gray-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {getDateLabel()}
+              </span>
+            </div>
+            <button
+              onClick={() => changeDate(1)}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex gap-1">
+            <button
+              onClick={() => setViewMode('day')}
+              className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                viewMode === 'day'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              Jour
+            </button>
+            <button
+              onClick={() => setViewMode('week')}
+              className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                viewMode === 'week'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              Semaine
+            </button>
+            <button
+              onClick={() => setViewMode('month')}
+              className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                viewMode === 'month'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              Mois
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Liste des ventes */}
       {loading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
         </div>
       ) : filteredSales.length === 0 ? (
-        <div className="card text-center py-8">
-          <Package className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-          <p className="text-gray-500 dark:text-gray-400">
-            {searchTerm ? 'Aucune vente trouvée' : 'Aucune vente enregistrée'}
+        <div className="card p-12 text-center">
+          <Package className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+          <p className="text-gray-500 dark:text-gray-400 font-medium">
+            {searchTerm ? 'Aucune vente trouvée' : 'Aucune vente pour cette période'}
           </p>
-          <Link to="/sales/new" className="btn-primary inline-block mt-4">
+          <Link to="/sales/new" className="btn-primary mt-4">
             Créer une vente
           </Link>
         </div>
@@ -163,12 +263,12 @@ const Sales = () => {
                       {formatDate(sale.created_at)}
                     </span>
                     {sale.is_credit ? (
-                      <span className="text-xs bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="badge-orange flex items-center gap-1">
                         <CreditCard className="h-3 w-3" />
                         Crédit
                       </span>
                     ) : (
-                      <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="badge-green flex items-center gap-1">
                         <Wallet className="h-3 w-3" />
                         Espèces
                       </span>
@@ -206,7 +306,7 @@ const Sales = () => {
                 </div>
               </div>
 
-              {/* Détails de la vente - avec images */}
+              {/* Détails de la vente */}
               {expandedSale === sale.id && (
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -220,8 +320,7 @@ const Sales = () => {
                         {sale.sale_items?.map((item, index) => {
                           const product = item.products || {}
                           return (
-                            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                              {/* Image du produit */}
+                            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                               {product.image_url ? (
                                 <img
                                   src={product.image_url}
@@ -257,23 +356,23 @@ const Sales = () => {
                       </div>
                     </div>
 
-                    {/* Informations de la vente */}
+                    {/* Informations */}
                     <div>
                       <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                         <Eye className="h-4 w-4 text-purple-500" />
                         Informations
                       </h4>
                       <div className="space-y-2 text-sm">
-                        <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                           <span className="text-gray-500 dark:text-gray-400">Sous-total</span>
                           <span className="font-medium">{sale.total_amount?.toLocaleString() || 0} FCFA</span>
                         </div>
-                        <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                           <span className="text-gray-500 dark:text-gray-400">TVA (18%)</span>
                           <span className="font-medium">{sale.tax?.toLocaleString() || 0} FCFA</span>
                         </div>
                         {sale.discount > 0 && (
-                          <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                             <span className="text-gray-500 dark:text-gray-400">Remise</span>
                             <span className="font-medium text-red-500">{sale.discount?.toLocaleString() || 0} FCFA</span>
                           </div>
@@ -284,7 +383,7 @@ const Sales = () => {
                             {sale.grand_total?.toLocaleString() || 0} FCFA
                           </span>
                         </div>
-                        <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                           <span className="text-gray-500 dark:text-gray-400">Paiement</span>
                           <span className="font-medium">
                             {sale.is_credit ? (
@@ -293,7 +392,7 @@ const Sales = () => {
                                 Crédit
                               </span>
                             ) : (
-                              <span className="text-green-500 flex items-center gap-1">
+                              <span className="text-emerald-500 flex items-center gap-1">
                                 <Wallet className="h-4 w-4" />
                                 Espèces
                               </span>
@@ -309,9 +408,9 @@ const Sales = () => {
                           </div>
                         )}
                         {sale.is_credit && sale.credit_status === 'paid' && sale.paid_at && (
-                          <div className="flex justify-between p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                          <div className="flex justify-between p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
                             <span className="text-gray-500 dark:text-gray-400">Payé le</span>
-                            <span className="font-medium text-green-500">
+                            <span className="font-medium text-emerald-500">
                               {formatDate(sale.paid_at)}
                             </span>
                           </div>

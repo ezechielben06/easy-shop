@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSales } from "../hooks/useSales";
 import { useProducts } from "../hooks/useProducts";
+import BarcodeScanner from "../components/common/BarcodeScanner";
 import {
   ArrowLeft,
   Plus,
@@ -16,6 +17,8 @@ import {
   CreditCard,
   Wallet,
   Calendar,
+  Barcode,
+  ScanLine
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -28,6 +31,7 @@ const NewSale = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [isCredit, setIsCredit] = useState(false);
   const [dueDate, setDueDate] = useState("");
   const searchRef = useRef(null);
@@ -52,6 +56,7 @@ const NewSale = () => {
     (p) =>
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (p.barcode && p.barcode.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (p.category &&
         p.category.toLowerCase().includes(searchTerm.toLowerCase())),
   );
@@ -101,6 +106,71 @@ const NewSale = () => {
     inputRef.current?.focus();
     toast.success(`${product.name} ajouté`, { duration: 1500 });
   };
+
+  const handleBarcodeScan = async (barcode) => {
+    try {
+      // Chercher le produit par code-barres
+      let product = products.find(p => p.barcode === barcode)
+
+      // Si pas trouvé, essayer par SKU
+      if (!product) {
+        product = products.find(p => p.sku === barcode)
+      }
+
+      // Si pas trouvé, essayer par nom (recherche partielle)
+      if (!product) {
+        product = products.find(p => 
+          p.name.toLowerCase().includes(barcode.toLowerCase())
+        )
+      }
+
+      if (!product) {
+        toast.error('Produit non trouvé dans le catalogue', { duration: 3000 })
+        return
+      }
+
+      if (product.quantity <= 0) {
+        toast.error('Produit en rupture de stock', { duration: 3000 })
+        return
+      }
+
+      // Ajouter le produit au panier
+      const existingItem = saleItems.find(item => item.productId === product.id)
+      
+      if (existingItem) {
+        if (existingItem.quantity + 1 > product.quantity) {
+          toast.error('Stock insuffisant')
+          return
+        }
+        setSaleItems(saleItems.map(item =>
+          item.productId === product.id
+            ? { ...item, quantity: item.quantity + 1, totalPrice: (item.quantity + 1) * item.unitPrice }
+            : item
+        ))
+      } else {
+        setSaleItems([
+          ...saleItems,
+          {
+            productId: product.id,
+            name: product.name,
+            image_url: product.image_url,
+            quantity: 1,
+            unitPrice: product.price,
+            totalPrice: product.price,
+            availableStock: product.quantity,
+            category: product.category
+          }
+        ])
+      }
+
+      toast.success(`${product.name} ajouté au panier !`, { duration: 2000 })
+      setShowBarcodeScanner(false)
+      
+    } catch (error) {
+      console.error('Erreur scan:', error)
+      toast.error('Erreur lors du traitement du code-barres')
+    }
+  }
 
   const removeItem = (productId) => {
     setSaleItems(saleItems.filter((item) => item.productId !== productId));
@@ -193,16 +263,34 @@ const NewSale = () => {
               </p>
             </div>
           </div>
-          {saleItems.length > 0 && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={clearCart}
-              className="text-sm text-red-500 hover:text-red-600 font-medium px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              onClick={() => setShowBarcodeScanner(true)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors text-blue-500"
+              title="Scanner un code-barres"
             >
-              Vider
+              <Barcode className="h-5 w-5" />
             </button>
-          )}
+            {saleItems.length > 0 && (
+              <button
+                onClick={clearCart}
+                className="text-sm text-red-500 hover:text-red-600 font-medium px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              >
+                Vider
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScanner
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={handleBarcodeScan}
+        title="Scanner un code-barres"
+        description="Scannez le code-barres d'un produit pour l'ajouter au panier"
+      />
 
       <div className="px-4 py-3 max-w-2xl mx-auto">
         {/* Type de vente - compact */}
@@ -335,6 +423,16 @@ const NewSale = () => {
                               <span className="text-gray-500 dark:text-gray-400">
                                 Stock: {product.quantity}
                               </span>
+                              {product.barcode && (
+                                <>
+                                  <span className="text-gray-300 dark:text-gray-600">
+                                    |
+                                  </span>
+                                  <span className="text-gray-400 dark:text-gray-500 text-[8px]">
+                                    📷 {product.barcode.slice(0, 6)}...
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -424,7 +522,7 @@ const NewSale = () => {
                 <ShoppingBag className="h-10 w-10 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
                 <p className="text-sm text-gray-500 dark:text-gray-400">Panier vide</p>
                 <p className="text-xs text-gray-400 dark:text-gray-500">
-                  Recherchez et ajoutez des produits
+                  Recherchez ou scannez un produit
                 </p>
               </div>
             ) : (

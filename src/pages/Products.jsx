@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useProducts } from '../hooks/useProducts'
 import ImageUpload from '../components/products/ImageUpload'
+import BarcodeScanner from '../components/common/BarcodeScanner'
 import { supabase } from '../lib/supabaseClient'
 import { 
   Plus, 
@@ -14,17 +15,15 @@ import {
   Loader2,
   Grid,
   List,
-  ChevronDown,
-  TrendingUp,
-  DollarSign,
-  ShoppingBag,
-  Filter
+  Barcode,
+  ScanLine
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const Products = () => {
   const { products, loading, fetchProducts, createProduct, updateProduct, deleteProduct } = useProducts()
   const [showForm, setShowForm] = useState(false)
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('grid')
@@ -38,7 +37,8 @@ const Products = () => {
     quantity: '',
     min_quantity: '5',
     category: '',
-    image_url: ''
+    image_url: '',
+    barcode: ''
   })
 
   useEffect(() => {
@@ -50,7 +50,8 @@ const Products = () => {
   const filteredProducts = products
     .filter(product => {
       const matchSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
+        (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (product.barcode && product.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
       const matchCategory = filterCategory === 'all' || product.category === filterCategory
       return matchSearch && matchCategory
     })
@@ -67,6 +68,42 @@ const Products = () => {
       setTempImageData(imageUrl)
     } else {
       setTempImageData(null)
+    }
+  }
+
+  const handleBarcodeScan = async (barcode) => {
+    try {
+      // Vérifier si le produit existe déjà avec ce code-barres
+      const existingProduct = products.find(p => p.barcode === barcode)
+
+      if (existingProduct) {
+        toast.info(`Produit existant: ${existingProduct.name}`, { duration: 3000 })
+        handleEdit(existingProduct)
+        setShowBarcodeScanner(false)
+        return
+      }
+
+      // Pré-remplir le formulaire avec le code-barres
+      setFormData({
+        name: '',
+        description: '',
+        price: '',
+        quantity: '',
+        min_quantity: '5',
+        category: '',
+        image_url: '',
+        barcode: barcode
+      })
+
+      setEditingProduct(null)
+      setShowForm(true)
+      setShowBarcodeScanner(false)
+      
+      toast.success('Code-barres détecté ! Remplissez les informations', { duration: 3000 })
+      
+    } catch (error) {
+      console.error('Erreur scan:', error)
+      toast.error('Erreur lors du traitement du code-barres')
     }
   }
 
@@ -89,6 +126,7 @@ const Products = () => {
       price: parseFloat(formData.price),
       quantity: parseInt(formData.quantity) || 0,
       min_quantity: parseInt(formData.min_quantity) || 5,
+      barcode: formData.barcode || null,
       image_url: null
     }
 
@@ -171,7 +209,8 @@ const Products = () => {
       quantity: '',
       min_quantity: '5',
       category: '',
-      image_url: ''
+      image_url: '',
+      barcode: ''
     })
     setTempImageData(null)
   }
@@ -185,7 +224,8 @@ const Products = () => {
       quantity: product.quantity.toString(),
       min_quantity: product.min_quantity?.toString() || '5',
       category: product.category || '',
-      image_url: product.image_url || ''
+      image_url: product.image_url || '',
+      barcode: product.barcode || ''
     })
     setTempImageData(null)
     setShowForm(true)
@@ -204,7 +244,7 @@ const Products = () => {
 
   return (
     <div className="space-y-6 pb-24 animate-fade-in">
-      {/* Header avec stats */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -214,18 +254,36 @@ const Products = () => {
             Gérez votre catalogue produits
           </p>
         </div>
-        <button
-          onClick={() => {
-            setEditingProduct(null)
-            resetForm()
-            setShowForm(!showForm)
-          }}
-          className="btn-primary"
-        >
-          <Plus className="h-4 w-4" />
-          Nouveau produit
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowBarcodeScanner(true)}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <ScanLine className="h-4 w-4" />
+            <span className="hidden sm:inline">Scanner</span>
+          </button>
+          <button
+            onClick={() => {
+              setEditingProduct(null)
+              resetForm()
+              setShowForm(!showForm)
+            }}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nouveau produit
+          </button>
+        </div>
       </div>
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScanner
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={handleBarcodeScan}
+        title="Scanner un code-barres"
+        description="Scannez le code-barres d'un produit"
+      />
 
       {/* Stats rapides */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -243,7 +301,7 @@ const Products = () => {
         <div className="stat-card">
           <div className="flex items-center gap-3">
             <div className="stat-icon bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
-              <ShoppingBag className="h-5 w-5" />
+              <Package className="h-5 w-5" />
             </div>
             <div>
               <p className="stat-label">En stock</p>
@@ -254,7 +312,7 @@ const Products = () => {
         <div className="stat-card">
           <div className="flex items-center gap-3">
             <div className="stat-icon bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400">
-              <DollarSign className="h-5 w-5" />
+              <Package className="h-5 w-5" />
             </div>
             <div>
               <p className="stat-label">Valeur totale</p>
@@ -299,6 +357,7 @@ const Products = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Image */}
               <div className="md:col-span-2">
                 <label className="input-label">Image du produit</label>
                 <ImageUpload
@@ -306,6 +365,30 @@ const Products = () => {
                   currentImage={formData.image_url}
                   onImageUploaded={handleImageUploaded}
                 />
+              </div>
+
+              {/* Code-barres */}
+              <div>
+                <label className="input-label flex items-center gap-1">
+                  <Barcode className="h-4 w-4" />
+                  Code-barres
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={formData.barcode}
+                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                    className="input flex-1"
+                    placeholder="Scannez ou entrez le code"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowBarcodeScanner(true)}
+                    className="btn-secondary px-3 flex items-center gap-1"
+                  >
+                    <ScanLine className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -516,6 +599,12 @@ const Products = () => {
                     Stock faible
                   </div>
                 )}
+                {product.barcode && (
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                    <Barcode className="h-2.5 w-2.5" />
+                    {product.barcode.slice(0, 8)}...
+                  </div>
+                )}
               </div>
 
               <div className="mt-3">
@@ -564,6 +653,7 @@ const Products = () => {
                   <th>Catégorie</th>
                   <th className="text-right">Prix</th>
                   <th className="text-right">Stock</th>
+                  <th className="text-right">Code</th>
                   <th className="text-right">Statut</th>
                   <th className="text-right">Actions</th>
                 </tr>
@@ -596,6 +686,9 @@ const Products = () => {
                       <span className={product.quantity <= product.min_quantity ? 'text-orange-500' : 'text-emerald-500'}>
                         {product.quantity}
                       </span>
+                    </td>
+                    <td className="text-right text-xs text-gray-400">
+                      {product.barcode ? product.barcode.slice(0, 10) : '-'}
                     </td>
                     <td className="text-right">
                       {product.quantity <= product.min_quantity ? (

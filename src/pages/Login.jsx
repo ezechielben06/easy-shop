@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Store } from 'lucide-react'
+import { Store, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 
 const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const { signIn } = useAuth()
   const navigate = useNavigate()
@@ -21,68 +22,64 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <Store className="mx-auto h-12 w-12 text-blue-500" />
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
-            Easy-Shop
-          </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Connectez-vous à votre compte
-          </p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex p-4 bg-blue-100 dark:bg-blue-900/30 rounded-2xl mb-4">
+            <Store className="h-12 w-12 text-blue-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Easy-Shop</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Connectez-vous à votre compte</p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm space-y-4">
-            <div>
-              <label htmlFor="email" className="input-label">
-                Adresse email
-              </label>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">Email</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
-                id="email"
-                name="email"
                 type="email"
-                autoComplete="email"
-                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="input-field"
+                className="w-full pl-10 pr-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm"
                 placeholder="exemple@email.com"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="input-label">
-                Mot de passe
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input-field"
-                placeholder="••••••••"
               />
             </div>
           </div>
 
           <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full flex justify-center"
-            >
-              {loading ? 'Connexion...' : 'Se connecter'}
-            </button>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">Mot de passe</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm"
+                placeholder="••••••••"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2.5 rounded-xl transition-all active:scale-[0.97] disabled:opacity-50"
+          >
+            {loading ? 'Connexion...' : 'Se connecter'}
+          </button>
+
           <div className="text-center">
-            <Link
-              to="/register"
-              className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-            >
+            <Link to="/register" className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
               Pas encore de compte ? Créez-en un
             </Link>
           </div>

@@ -10,15 +10,16 @@ import {
   Wallet,
   ChevronDown,
   ChevronUp,
-  Eye,
   Calendar,
   Clock,
   DollarSign,
-  Filter,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Filter,
+  X,
+  Eye
 } from 'lucide-react'
-import { format, startOfDay, endOfDay, subDays, addDays, isToday, isYesterday } from 'date-fns'
+import { format, startOfDay, endOfDay, isToday, isYesterday, subDays, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
 const Sales = () => {
@@ -27,7 +28,8 @@ const Sales = () => {
   const [expandedSale, setExpandedSale] = useState(null)
   const [filterType, setFilterType] = useState('all')
   const [selectedDate, setSelectedDate] = useState(new Date())
-  const [viewMode, setViewMode] = useState('day') // 'day', 'week', 'month'
+  const [showFilters, setShowFilters] = useState(false)
+  const [viewMode, setViewMode] = useState('day')
 
   useEffect(() => {
     loadSales()
@@ -67,17 +69,13 @@ const Sales = () => {
   })
 
   const changeDate = (days) => {
-    setSelectedDate(prev => {
-      const newDate = new Date(prev)
-      newDate.setDate(newDate.getDate() + days)
-      return newDate
-    })
+    setSelectedDate(prev => addDays(prev, days))
   }
 
   const getDateLabel = () => {
     if (isToday(selectedDate)) return "Aujourd'hui"
     if (isYesterday(selectedDate)) return 'Hier'
-    return format(selectedDate, 'EEEE d MMMM yyyy', { locale: fr })
+    return format(selectedDate, 'EEEE d MMMM', { locale: fr })
   }
 
   const formatDate = (date) => {
@@ -100,328 +98,284 @@ const Sales = () => {
     }
   }
 
+  const clearSearch = () => setSearchTerm('')
+
+  // Calcul des stats du jour
+  const todayCount = filteredSales.length
+  const todayTotal = filteredSales.reduce((sum, s) => sum + (s.grand_total || 0), 0)
+  const cashCount = filteredSales.filter(s => !s.is_credit).length
+  const creditCount = filteredSales.filter(s => s.is_credit).length
+
   return (
-    <div className="space-y-6 pb-24 animate-fade-in">
+    <div className="space-y-3 pb-24 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Ventes
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+          <h1 className="text-lg font-bold text-gray-900 dark:text-white">Ventes</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             {sales.length} vente{sales.length > 1 ? 's' : ''} enregistrée{sales.length > 1 ? 's' : ''}
           </p>
         </div>
         <Link
           to="/sales/new"
-          className="btn-primary"
+          className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-2 px-3 rounded-xl flex items-center gap-1.5 transition-all active:scale-[0.97] shadow-sm"
         >
           <Plus className="h-4 w-4" />
-          Nouvelle vente
+          Nouvelle
         </Link>
       </div>
 
-      {/* Filtres et navigation */}
-      <div className="card p-4">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher par numéro de facture..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input pl-9"
-            />
+      {/* Navigation date */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-2.5 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="flex items-center justify-between">
+          <button onClick={() => changeDate(-1)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <ChevronLeft className="h-4 w-4 text-gray-500" />
+          </button>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-gray-400" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{getDateLabel()}</span>
           </div>
-          
+          <button onClick={() => changeDate(1)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <ChevronRight className="h-4 w-4 text-gray-500" />
+          </button>
+        </div>
+        
+        {/* Vue mode */}
+        <div className="flex justify-center gap-1 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+          <button
+            onClick={() => setViewMode('day')}
+            className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+              viewMode === 'day'
+                ? 'bg-blue-500 text-white'
+                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            Jour
+          </button>
+          <button
+            onClick={() => setViewMode('week')}
+            className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+              viewMode === 'week'
+                ? 'bg-blue-500 text-white'
+                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            Semaine
+          </button>
+          <button
+            onClick={() => setViewMode('month')}
+            className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+              viewMode === 'month'
+                ? 'bg-blue-500 text-white'
+                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            Mois
+          </button>
+        </div>
+      </div>
+
+      {/* Stats rapides */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-2.5 text-center border border-gray-200 dark:border-gray-700 shadow-sm">
+          <p className="text-sm font-bold text-gray-900 dark:text-white">{todayCount}</p>
+          <p className="text-[10px] text-gray-400">Ventes</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-2.5 text-center border border-gray-200 dark:border-gray-700 shadow-sm">
+          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{todayTotal.toLocaleString()}</p>
+          <p className="text-[10px] text-gray-400">Total</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-2.5 text-center border border-gray-200 dark:border-gray-700 shadow-sm">
+          <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{cashCount}</p>
+          <p className="text-[10px] text-gray-400">💵 Espèces</p>
+        </div>
+      </div>
+
+      {/* Filtres et recherche */}
+      <div className="flex gap-2">
+        <div className="flex-1 relative">
+          <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Rechercher..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-8 pr-8 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          />
+          {searchTerm && (
+            <button onClick={clearSearch} className="absolute right-2.5 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <X className="h-3.5 w-3.5 text-gray-400" />
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`p-2 rounded-xl border transition-all ${
+            showFilters ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-500' : 'border-gray-200 dark:border-gray-700 text-gray-400'
+          }`}
+        >
+          <Filter className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Filtres déroulants */}
+      {showFilters && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-sm space-y-2 animate-slide-down">
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setFilterType('all')}
-              className={`px-3 py-2 rounded-xl text-sm transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-1 ${
                 filterType === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}
             >
               Toutes
             </button>
             <button
               onClick={() => setFilterType('cash')}
-              className={`px-3 py-2 rounded-xl text-sm transition-all flex items-center gap-1 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-1 flex items-center justify-center gap-1 ${
                 filterType === 'cash'
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}
             >
-              <Wallet className="h-4 w-4" />
-              Espèces
+              <Wallet className="h-3 w-3" /> Espèces
             </button>
             <button
               onClick={() => setFilterType('credit')}
-              className={`px-3 py-2 rounded-xl text-sm transition-all flex items-center gap-1 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-1 flex items-center justify-center gap-1 ${
                 filterType === 'credit'
                   ? 'bg-orange-500 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}
             >
-              <CreditCard className="h-4 w-4" />
-              Crédit
+              <CreditCard className="h-3 w-3" /> Crédit
             </button>
           </div>
-        </div>
-
-        {/* Navigation par date */}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => changeDate(-1)}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-400" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {getDateLabel()}
-              </span>
+          {filterType !== 'all' && (
+            <div className="text-center text-[10px] text-gray-400">
+              {filterType === 'cash' ? '💵 Ventes en espèces' : '📝 Ventes à crédit'}
             </div>
-            <button
-              onClick={() => changeDate(1)}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="flex gap-1">
-            <button
-              onClick={() => setViewMode('day')}
-              className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                viewMode === 'day'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              Jour
-            </button>
-            <button
-              onClick={() => setViewMode('week')}
-              className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                viewMode === 'week'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              Semaine
-            </button>
-            <button
-              onClick={() => setViewMode('month')}
-              className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                viewMode === 'month'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              Mois
-            </button>
-          </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Liste des ventes */}
       {loading ? (
         <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+          <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
         </div>
       ) : filteredSales.length === 0 ? (
-        <div className="card p-12 text-center">
-          <Package className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-          <p className="text-gray-500 dark:text-gray-400 font-medium">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-8 text-center border border-gray-200 dark:border-gray-700">
+          <Package className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
             {searchTerm ? 'Aucune vente trouvée' : 'Aucune vente pour cette période'}
           </p>
-          <Link to="/sales/new" className="btn-primary mt-4">
+          <Link to="/sales/new" className="inline-block mt-3 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded-xl transition-all">
             Créer une vente
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredSales.map((sale) => (
-            <div key={sale.id} className="card p-4 hover:shadow-lg transition-all">
-              {/* En-tête de la vente */}
-              <div 
-                className="flex items-center justify-between cursor-pointer"
-                onClick={() => setExpandedSale(expandedSale === sale.id ? null : sale.id)}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="font-semibold text-blue-600 dark:text-blue-400">
-                      {sale.invoice_number}
-                    </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDate(sale.created_at)}
-                    </span>
-                    {sale.is_credit ? (
-                      <span className="badge-orange flex items-center gap-1">
-                        <CreditCard className="h-3 w-3" />
-                        Crédit
-                      </span>
-                    ) : (
-                      <span className="badge-green flex items-center gap-1">
-                        <Wallet className="h-3 w-3" />
-                        Espèces
-                      </span>
-                    )}
-                    {sale.is_credit && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${getCreditStatusColor(sale.credit_status)}`}>
-                        {getCreditStatusLabel(sale.credit_status)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {sale.sale_items?.length || 0} article{sale.sale_items?.length > 1 ? 's' : ''}
-                    </span>
-                    <span className="text-xs text-gray-400">•</span>
-                    <span className="text-sm font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                      <DollarSign className="h-3 w-3" />
-                      {sale.grand_total?.toLocaleString() || 0} FCFA
-                    </span>
-                    {sale.is_credit && sale.due_date && (
-                      <>
-                        <span className="text-xs text-gray-400">•</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          Échéance: {format(new Date(sale.due_date), 'dd/MM/yyyy')}
+        <div className="space-y-2">
+          {filteredSales.map((sale) => {
+            const isExpanded = expandedSale === sale.id
+            const hasCredit = sale.is_credit
+
+            return (
+              <div key={sale.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                {/* En-tête */}
+                <div 
+                  className="p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                  onClick={() => setExpandedSale(isExpanded ? null : sale.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                          {sale.invoice_number}
                         </span>
-                      </>
-                    )}
+                        <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
+                          <Clock className="h-3 w-3" />
+                          {format(new Date(sale.created_at), 'HH:mm')}
+                        </span>
+                        {hasCredit ? (
+                          <span className="text-[10px] bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                            <CreditCard className="h-2.5 w-2.5" /> Crédit
+                          </span>
+                        ) : (
+                          <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                            <Wallet className="h-2.5 w-2.5" /> Espèces
+                          </span>
+                        )}
+                        {hasCredit && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${getCreditStatusColor(sale.credit_status)}`}>
+                            {getCreditStatusLabel(sale.credit_status)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-gray-500">{sale.sale_items?.length || 0} articles</span>
+                        <span className="text-[10px] text-gray-300">•</span>
+                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                          {sale.grand_total?.toLocaleString()} FCFA
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">
-                    {expandedSale === sale.id ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                  </span>
-                </div>
-              </div>
 
-              {/* Détails de la vente */}
-              {expandedSale === sale.id && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Détails */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 dark:border-gray-700 p-3 bg-gray-50/50 dark:bg-gray-800/30">
                     {/* Produits */}
-                    <div className="lg:col-span-2">
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                        <Package className="h-4 w-4 text-blue-500" />
-                        Produits vendus
-                      </h4>
-                      <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
-                        {sale.sale_items?.map((item, index) => {
-                          const product = item.products || {}
-                          return (
-                            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                              {product.image_url ? (
-                                <img
-                                  src={product.image_url}
-                                  alt={product.name || 'Produit'}
-                                  className="w-14 h-14 object-cover rounded-lg flex-shrink-0 border border-gray-200 dark:border-gray-600"
-                                  onError={(e) => { e.target.style.display = 'none' }}
-                                />
-                              ) : (
-                                <div className="w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
-                                  <Package className="h-7 w-7 text-gray-400" />
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
-                                  {product.name || 'Produit'}
-                                </p>
-                                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                  <span>{item.quantity} x {item.unit_price?.toLocaleString()} FCFA</span>
-                                  {product.category && (
-                                    <>
-                                      <span className="text-gray-300">•</span>
-                                      <span className="text-gray-400">{product.category}</span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                              <span className="font-bold text-blue-600 dark:text-blue-400 text-sm whitespace-nowrap">
-                                {item.total_price?.toLocaleString()} FCFA
-                              </span>
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Produits</p>
+                      {sale.sale_items?.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+                          {item.products?.image_url ? (
+                            <img src={item.products.image_url} alt="" className="w-8 h-8 object-cover rounded-lg flex-shrink-0" />
+                          ) : (
+                            <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <Package className="h-4 w-4 text-gray-400" />
                             </div>
-                          )
-                        })}
-                      </div>
+                          )}
+                          <span className="text-xs text-gray-700 dark:text-gray-300 flex-1 truncate">
+                            {item.products?.name || 'Produit'}
+                          </span>
+                          <span className="text-[10px] text-gray-400">{item.quantity}×</span>
+                          <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                            {item.total_price?.toLocaleString()} FCFA
+                          </span>
+                        </div>
+                      ))}
                     </div>
 
-                    {/* Informations */}
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                        <Eye className="h-4 w-4 text-purple-500" />
-                        Informations
-                      </h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                          <span className="text-gray-500 dark:text-gray-400">Sous-total</span>
-                          <span className="font-medium">{sale.total_amount?.toLocaleString() || 0} FCFA</span>
-                        </div>
-                        <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                          <span className="text-gray-500 dark:text-gray-400">TVA (18%)</span>
-                          <span className="font-medium">{sale.tax?.toLocaleString() || 0} FCFA</span>
-                        </div>
-                        {sale.discount > 0 && (
-                          <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                            <span className="text-gray-500 dark:text-gray-400">Remise</span>
-                            <span className="font-medium text-red-500">{sale.discount?.toLocaleString() || 0} FCFA</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                          <span className="font-semibold text-gray-900 dark:text-white">Total</span>
-                          <span className="font-bold text-blue-600 dark:text-blue-400">
-                            {sale.grand_total?.toLocaleString() || 0} FCFA
-                          </span>
-                        </div>
-                        <div className="flex justify-between p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                          <span className="text-gray-500 dark:text-gray-400">Paiement</span>
-                          <span className="font-medium">
-                            {sale.is_credit ? (
-                              <span className="text-orange-500 flex items-center gap-1">
-                                <CreditCard className="h-4 w-4" />
-                                Crédit
-                              </span>
-                            ) : (
-                              <span className="text-emerald-500 flex items-center gap-1">
-                                <Wallet className="h-4 w-4" />
-                                Espèces
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                        {sale.is_credit && sale.due_date && (
-                          <div className="flex justify-between p-2.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                            <span className="text-gray-500 dark:text-gray-400">Échéance</span>
-                            <span className="font-medium text-orange-500">
-                              {format(new Date(sale.due_date), 'dd/MM/yyyy')}
-                            </span>
-                          </div>
-                        )}
-                        {sale.is_credit && sale.credit_status === 'paid' && sale.paid_at && (
-                          <div className="flex justify-between p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-                            <span className="text-gray-500 dark:text-gray-400">Payé le</span>
-                            <span className="font-medium text-emerald-500">
-                              {formatDate(sale.paid_at)}
-                            </span>
-                          </div>
-                        )}
+                    {/* Infos supplémentaires */}
+                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 grid grid-cols-2 gap-2">
+                      <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-100 dark:border-gray-700">
+                        <p className="text-[10px] text-gray-400">Sous-total</p>
+                        <p className="text-xs font-medium text-gray-900 dark:text-white">{sale.total_amount?.toLocaleString()} FCFA</p>
                       </div>
+                      <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-100 dark:border-gray-700">
+                        <p className="text-[10px] text-gray-400">Total</p>
+                        <p className="text-xs font-bold text-blue-600 dark:text-blue-400">{sale.grand_total?.toLocaleString()} FCFA</p>
+                      </div>
+                      {hasCredit && sale.due_date && (
+                        <div className="col-span-2 bg-orange-50 dark:bg-orange-900/10 rounded-lg p-2 border border-orange-200 dark:border-orange-800">
+                          <p className="text-[10px] text-orange-500">📅 Échéance</p>
+                          <p className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                            {format(new Date(sale.due_date), 'dd/MM/yyyy')}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

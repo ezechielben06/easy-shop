@@ -9,10 +9,7 @@ import {
   Save,
   Package,
   Calendar,
-  Loader2,
-  TrendingUp,
-  TrendingDown,
-  BarChart3
+  Loader2
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -87,18 +84,12 @@ const DailyInventory = () => {
 
   const updateInventoryCount = (productId, newCount) => {
     if (newCount < 0) return
-    
     setInventoryItems(items => 
       items.map(item => {
         if (item.product_id === productId) {
           const difference = newCount - item.expected_quantity
           const status = difference === 0 ? 'correct' : 'discrepancy'
-          return {
-            ...item,
-            actual_quantity: newCount,
-            difference,
-            status
-          }
+          return { ...item, actual_quantity: newCount, difference, status }
         }
         return item
       })
@@ -133,24 +124,16 @@ const DailyInventory = () => {
 
       let result
       if (existing) {
-        result = await supabase
-          .from('daily_inventory')
-          .update(inventoryData)
-          .eq('date', inventoryDate)
+        result = await supabase.from('daily_inventory').update(inventoryData).eq('date', inventoryDate)
       } else {
-        result = await supabase
-          .from('daily_inventory')
-          .insert([inventoryData])
+        result = await supabase.from('daily_inventory').insert([inventoryData])
       }
 
       if (result.error) throw result.error
 
       for (const item of inventoryItems) {
         if (item.difference !== 0) {
-          await supabase
-            .from('products')
-            .update({ quantity: item.actual_quantity })
-            .eq('id', item.product_id)
+          await supabase.from('products').update({ quantity: item.actual_quantity }).eq('id', item.product_id)
         }
       }
 
@@ -178,129 +161,109 @@ const DailyInventory = () => {
   if (isLoading || loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
+        <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 pb-32 animate-fade-in">
+    <div className="space-y-3 pb-32 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <ClipboardList className="h-6 w-6 text-blue-500" />
-            Inventaire Journalier
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            {format(new Date(inventoryDate), 'EEEE d MMMM yyyy', { locale: fr })}
-          </p>
+        <div className="flex items-center gap-2">
+          <ClipboardList className="h-5 w-5 text-blue-500" />
+          <div>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-white">Inventaire</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {format(new Date(inventoryDate), 'EEEE d MMMM', { locale: fr })}
+            </p>
+          </div>
         </div>
         <input
           type="date"
           value={inventoryDate}
           onChange={(e) => setInventoryDate(e.target.value)}
-          className="input w-40"
+          className="py-1.5 px-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-32"
         />
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="stat-card">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
-          </div>
+      <div className="grid grid-cols-4 gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-2 text-center border border-gray-200 dark:border-gray-700 shadow-sm">
+          <p className="text-sm font-bold text-gray-900 dark:text-white">{stats.total}</p>
+          <p className="text-[10px] text-gray-400">Total</p>
         </div>
-        <div className="stat-card border-emerald-200/60 dark:border-emerald-800/30 bg-emerald-50/30 dark:bg-emerald-900/5">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.verified}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">✅ OK</p>
-          </div>
+        <div className="bg-emerald-50 dark:bg-emerald-900/5 rounded-xl p-2 text-center border border-emerald-200 dark:border-emerald-800">
+          <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{stats.verified}</p>
+          <p className="text-[10px] text-gray-400">✅ OK</p>
         </div>
-        <div className="stat-card border-orange-200/60 dark:border-orange-800/30 bg-orange-50/30 dark:bg-orange-900/5">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-orange-500">{stats.discrepancies}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">⚠️ Écarts</p>
-          </div>
+        <div className="bg-orange-50 dark:bg-orange-900/5 rounded-xl p-2 text-center border border-orange-200 dark:border-orange-800">
+          <p className="text-sm font-bold text-orange-500">{stats.discrepancies}</p>
+          <p className="text-[10px] text-gray-400">⚠️ Écarts</p>
         </div>
-        <div className="stat-card border-red-200/60 dark:border-red-800/30 bg-red-50/30 dark:bg-red-900/5">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-red-500">{stats.pending}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">⏳ En attente</p>
-          </div>
+        <div className="bg-red-50 dark:bg-red-900/5 rounded-xl p-2 text-center border border-red-200 dark:border-red-800">
+          <p className="text-sm font-bold text-red-500">{stats.pending}</p>
+          <p className="text-[10px] text-gray-400">⏳</p>
         </div>
       </div>
 
       {completed && (
-        <div className="card p-4 border-emerald-200/60 dark:border-emerald-800/30 bg-emerald-50/30 dark:bg-emerald-900/5 flex items-center gap-3">
-          <CheckCircle className="h-5 w-5 text-emerald-500" />
-          <span className="text-sm text-emerald-700 dark:text-emerald-300">
-            Inventaire terminé à {format(new Date(), 'HH:mm')}
-          </span>
+        <div className="bg-emerald-50 dark:bg-emerald-900/5 rounded-xl p-2.5 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-emerald-500" />
+          <span className="text-xs text-emerald-700 dark:text-emerald-300">Inventaire terminé</span>
         </div>
       )}
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
         <input
           type="text"
-          placeholder="Rechercher un produit..."
+          placeholder="Rechercher..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="input pl-9"
+          className="w-full pl-8 pr-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20"
         />
       </div>
 
-      {/* Inventory List */}
+      {/* Liste */}
       {filteredItems.length === 0 ? (
-        <div className="card p-12 text-center">
-          <Package className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-          <p className="text-gray-500 dark:text-gray-400 font-medium">Aucun produit trouvé</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-8 text-center border border-gray-200 dark:border-gray-700">
+          <Package className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Aucun produit</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {filteredItems.map((item) => (
-            <div key={item.product_id} className="card p-4 flex items-center justify-between hover:shadow-md transition-shadow">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 dark:text-white text-sm">
-                  {item.product_name}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Stock théorique: {item.expected_quantity}
-                </p>
-                {item.status === 'discrepancy' && (
-                  <p className="text-xs text-orange-500 mt-0.5">
-                    Écart: {item.difference > 0 ? '+' : ''}{item.difference}
-                  </p>
-                )}
+            <div key={item.product_id} className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{item.product_name}</p>
+                  <p className="text-[10px] text-gray-400">Théorique: {item.expected_quantity}</p>
+                  {item.status === 'discrepancy' && (
+                    <p className="text-[10px] text-orange-500">Écart: {item.difference > 0 ? '+' : ''}{item.difference}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => updateInventoryCount(item.product_id, item.actual_quantity - 1)}
+                    className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 flex items-center justify-center text-lg font-bold disabled:opacity-50"
+                    disabled={completed}
+                  >
+                    −
+                  </button>
+                  <span className="w-10 text-center text-lg font-bold text-gray-900 dark:text-white">{item.actual_quantity}</span>
+                  <button
+                    onClick={() => updateInventoryCount(item.product_id, item.actual_quantity + 1)}
+                    className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 flex items-center justify-center text-lg font-bold disabled:opacity-50"
+                    disabled={completed}
+                  >
+                    +
+                  </button>
+                </div>
+                {item.status === 'correct' && <CheckCircle className="h-4 w-4 text-emerald-500 ml-1 flex-shrink-0" />}
+                {item.status === 'discrepancy' && <AlertCircle className="h-4 w-4 text-orange-500 ml-1 flex-shrink-0" />}
               </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => updateInventoryCount(item.product_id, item.actual_quantity - 1)}
-                  className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center text-xl font-bold"
-                  disabled={completed}
-                >
-                  −
-                </button>
-                <span className="w-12 text-center text-xl font-bold text-gray-900 dark:text-white">
-                  {item.actual_quantity}
-                </span>
-                <button
-                  onClick={() => updateInventoryCount(item.product_id, item.actual_quantity + 1)}
-                  className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors flex items-center justify-center text-xl font-bold"
-                  disabled={completed}
-                >
-                  +
-                </button>
-              </div>
-              {item.status === 'correct' && (
-                <CheckCircle className="h-5 w-5 text-emerald-500 ml-2" />
-              )}
-              {item.status === 'discrepancy' && (
-                <AlertCircle className="h-5 w-5 text-orange-500 ml-2" />
-              )}
             </div>
           ))}
         </div>
@@ -308,17 +271,15 @@ const DailyInventory = () => {
 
       {/* Save Button */}
       {!completed && inventoryItems.length > 0 && (
-        <div className="fixed bottom-20 left-0 right-0 p-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-700 z-20">
-          <div className="max-w-7xl mx-auto px-4">
-            <button
-              onClick={saveInventory}
-              disabled={saving}
-              className="btn-success w-full flex items-center justify-center gap-2 py-3 text-base"
-            >
-              <Save className="h-5 w-5" />
-              {saving ? 'Enregistrement...' : 'Enregistrer l\'inventaire'}
-            </button>
-          </div>
+        <div className="fixed bottom-16 left-0 right-0 p-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 z-20">
+          <button
+            onClick={saveInventory}
+            disabled={saving}
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm transition-all active:scale-[0.97]"
+          >
+            <Save className="h-4 w-4" />
+            {saving ? 'Enregistrement...' : 'Enregistrer'}
+          </button>
         </div>
       )}
     </div>

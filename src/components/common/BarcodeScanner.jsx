@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { BrowserMultiFormatReader } from '@zxing/library'
-import { X, Loader2, Barcode, AlertCircle, ScanLine } from 'lucide-react'
+import Quagga from 'quagga'
+import { X, Loader2, Barcode, AlertCircle, ScanLine, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const BarcodeScanner = ({ 
@@ -13,10 +13,21 @@ const BarcodeScanner = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [scanCount, setScanCount] = useState(0)
-  const [isScanning, setIsScanning] = useState(false)
-  const videoRef = useRef(null)
-  const readerRef = useRef(null)
+  const [isReady, setIsReady] = useState(false)
+  const [isScanningPaused, setIsScanningPaused] = useState(false)
+  const [debugInfo, setDebugInfo] = useState('')
+  const scannerRef = useRef(null)
+  const containerRef = useRef(null)
   const lastScanRef = useRef(null)
+  const isMounted = useRef(true)
+
+  useEffect(() => {
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
+      stopScanner()
+    }
+  }, [])
 
   useEffect(() => {
     if (isOpen) {
@@ -24,72 +35,189 @@ const BarcodeScanner = ({
     } else {
       stopScanner()
     }
-
     return () => {
       stopScanner()
     }
   }, [isOpen])
 
   const startScanner = async () => {
+    if (!containerRef.current || !isMounted.current) return
+
     try {
       setError(null)
-      setIsScanning(true)
-
-      const codeReader = new BrowserMultiFormatReader()
-      readerRef.current = codeReader
-
-      // Démarrer avec la caméra par défaut
-      await codeReader.decodeFromVideoDevice(
-        undefined, // undefined = caméra par défaut
-        videoRef.current,
-        (result, err) => {
-          if (result) {
-            handleScan(result.getText())
-          }
-          if (err && !(err instanceof Error && err.message.includes('NotFoundException'))) {
-            console.warn('Erreur de scan:', err)
-          }
-        }
-      )
-
-    } catch (error) {
-      console.error('Erreur scanner:', error)
-      setError('Impossible d\'accéder à la caméra')
-      setIsScanning(false)
+      setIsReady(false)
+      setIsScanningPaused(false)
       
-      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        toast.error('Veuillez autoriser l\'accès à la caméra')
-      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-        toast.error('Aucune caméra trouvée')
-      } else {
-        toast.error('Erreur d\'accès à la caméra')
+      containerRef.current.innerHTML = ''
+
+      // Configuration améliorée pour les codes-barres
+      const config = {
+        inputStream: {
+          name: 'Live',
+          type: 'LiveStream',
+          target: containerRef.current,
+          constraints: {
+            facingMode: 'environment',
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            aspectRatio: { ideal: 1.333 }
+          },
+        },
+        decoder: {
+          readers: [
+            'ean_reader',
+            'ean_8_reader',
+            'upc_reader',
+            'upc_e_reader',
+            'code_128_reader',
+            'code_39_reader',
+            'codabar_reader',
+            'i2of5_reader',
+            'code_93_reader'
+          ],
+          multiple: false,
+          debug: {
+            showCanvas: false,
+            showPatches: false,
+            showFoundPatches: false,
+            showSkeleton: false,
+            showLabels: false,
+            showPatchLabels: false,
+            showRemainingPatchLabels: false,
+            boxFromPatches: false,
+            showBarcode: false,
+            showFrequency: false,
+            showMinFrequency: false,
+            showPattern: false,
+            showMultipleLabels: false,
+            showSkeletonRemain: false,
+            showHolePoints: false,
+            showHole: false,
+            showBestCodes: false,
+          }
+        },
+        locate: true,
+        frequency: 10, // Réduit pour moins de faux positifs
+        numOfWorkers: 2,
+        halfSample: true // Meilleure performance
       }
+
+      Quagga.init(config, (err) => {
+        if (err) {
+          console.error('Erreur Quagga:', err)
+          setError('Erreur d\'initialisation de la caméra')
+          toast.error('Erreur d\'accès à la caméra')
+          return
+        }
+
+        if (isMounted.current) {
+          setIsReady(true)
+          Quagga.start()
+          console.log('✅ Scanner Quagga démarré')
+        }
+      })
+
+      // Détection des codes-barres avec validation
+      Quagga.onDetected((result) => {
+        if (!result || !result.codeResult || !isMounted.current || isScanningPaused) return
+        
+        const code = result.codeResult.code
+        
+        // Valider le code détecté
+        if (code && isValidBarcode(code)) {
+          handleScan(code)
+        } else {
+          setDebugInfo(`Code invalide: ${code || 'vide'}`)
+        }
+      })
+
+      Quagga.onProcessed((result) => {
+        // Ignorer silencieusement
+      })
+
+      scannerRef.current = Quagga
+
+    } catch (err) {
+      if (!isMounted.current) return
+      console.error('Erreur scanner:', err)
+      setError('Impossible d\'accéder à la caméra')
+      toast.error('Erreur d\'accès à la caméra')
     }
   }
 
-  const stopScanner = async () => {
-    try {
-      setIsScanning(false)
-      if (readerRef.current) {
-        try {
-          await readerRef.current.reset()
-        } catch (e) {
-          // Ignorer l'erreur de reset
-        }
-        readerRef.current = null
-      }
-      if (videoRef.current && videoRef.current.srcObject) {
-        const tracks = videoRef.current.srcObject.getTracks()
-        tracks.forEach(track => track.stop())
-        videoRef.current.srcObject = null
-      }
-    } catch (error) {
-      console.error('Erreur arrêt scanner:', error)
+  // Fonction de validation des codes-barres
+  const isValidBarcode = (code) => {
+    if (!code || typeof code !== 'string') return false
+    
+    // Nettoyer le code
+    const cleanCode = code.trim()
+    
+    // Vérifier la longueur minimale (les codes-barres ont au moins 8 caractères)
+    if (cleanCode.length < 8) return false
+    
+    // Vérifier si le code contient des caractères valides (chiffres principalement)
+    const isValidFormat = /^[0-9A-Z\-]+$/.test(cleanCode)
+    if (!isValidFormat) return false
+    
+    // Vérifier les formats courants
+    // EAN-13: 13 chiffres
+    if (/^\d{13}$/.test(cleanCode)) {
+      // Vérifier la somme de contrôle EAN-13
+      return validateEAN13(cleanCode)
     }
+    
+    // EAN-8: 8 chiffres
+    if (/^\d{8}$/.test(cleanCode)) {
+      return validateEAN8(cleanCode)
+    }
+    
+    // UPC-A: 12 chiffres
+    if (/^\d{12}$/.test(cleanCode)) {
+      return validateUPC(cleanCode)
+    }
+    
+    // Code-128, Code-39, etc. - on accepte si le format est bon
+    return cleanCode.length >= 8
+  }
+
+  // Validation EAN-13
+  const validateEAN13 = (code) => {
+    if (code.length !== 13) return false
+    let sum = 0
+    for (let i = 0; i < 12; i++) {
+      const digit = parseInt(code[i])
+      sum += (i % 2 === 0) ? digit : digit * 3
+    }
+    const checkDigit = (10 - (sum % 10)) % 10
+    return parseInt(code[12]) === checkDigit
+  }
+
+  // Validation EAN-8
+  const validateEAN8 = (code) => {
+    if (code.length !== 8) return false
+    let sum = 0
+    for (let i = 0; i < 7; i++) {
+      const digit = parseInt(code[i])
+      sum += (i % 2 === 0) ? digit * 3 : digit
+    }
+    const checkDigit = (10 - (sum % 10)) % 10
+    return parseInt(code[7]) === checkDigit
+  }
+
+  // Validation UPC-A
+  const validateUPC = (code) => {
+    if (code.length !== 12) return false
+    let sum = 0
+    for (let i = 0; i < 11; i++) {
+      const digit = parseInt(code[i])
+      sum += (i % 2 === 0) ? digit * 3 : digit
+    }
+    const checkDigit = (10 - (sum % 10)) % 10
+    return parseInt(code[11]) === checkDigit
   }
 
   const handleScan = async (barcode) => {
-    if (loading || !isScanning) return
+    if (loading) return
     
     const now = Date.now()
     if (lastScanRef.current && now - lastScanRef.current < 2000) {
@@ -100,35 +228,67 @@ const BarcodeScanner = ({
     try {
       setLoading(true)
       setError(null)
-
-      if (!barcode) {
-        setError('Code-barres non valide')
-        setLoading(false)
-        return
-      }
-
+      setIsScanningPaused(true)
+      
+      // Nettoyer le code
+      const cleanCode = barcode.trim()
+      
       setScanCount(prev => prev + 1)
       
-      // Vibrer si disponible
       if (navigator.vibrate) {
         navigator.vibrate(200)
       }
       
-      await onScan(barcode)
+      toast.success(`✅ Code détecté: ${cleanCode}`, { duration: 2000 })
+      setDebugInfo(`Code: ${cleanCode}`)
       
-    } catch (error) {
-      console.error('Erreur de scan:', error)
-      setError('Erreur lors du traitement du code-barres')
-      toast.error('Erreur de scan')
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      if (isMounted.current) {
+        await onScan(cleanCode)
+      }
+      
+    } catch (err) {
+      console.error('Erreur traitement:', err)
+      toast.error('Erreur de traitement')
     } finally {
-      setLoading(false)
+      if (isMounted.current) {
+        setLoading(false)
+        setTimeout(() => {
+          if (isMounted.current) {
+            setIsScanningPaused(false)
+          }
+        }, 800)
+      }
+    }
+  }
+
+  const stopScanner = () => {
+    try {
+      if (scannerRef.current) {
+        try {
+          scannerRef.current.stop()
+        } catch (e) {}
+        scannerRef.current = null
+      }
+      if (containerRef.current) {
+        containerRef.current.innerHTML = ''
+      }
+      setIsReady(false)
+      setIsScanningPaused(false)
+    } catch (err) {
+      console.debug('Stop scanner error:', err)
     }
   }
 
   const handleRetry = () => {
+    if (!isMounted.current) return
     stopScanner()
+    setDebugInfo('')
     setTimeout(() => {
-      startScanner()
+      if (isMounted.current) {
+        startScanner()
+      }
     }, 500)
   }
 
@@ -165,12 +325,10 @@ const BarcodeScanner = ({
 
         {/* Scanner */}
         <div className="relative aspect-square bg-black overflow-hidden" style={{ zIndex: 1 }}>
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            playsInline
-            muted
-            autoPlay
+          <div 
+            ref={containerRef} 
+            id="scanner-container"
+            className="w-full h-full"
           />
 
           {/* Cadre de scan */}
@@ -186,6 +344,17 @@ const BarcodeScanner = ({
                 <div className="absolute left-0 right-0 h-0.5 bg-blue-500 shadow-lg shadow-blue-500/50 animate-scan-line" />
               </div>
             </div>
+
+            {/* Debug info */}
+            {debugInfo && (
+              <div className="absolute bottom-16 left-4 right-4 text-center">
+                <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 inline-block mx-auto">
+                  <p className="text-[10px] text-white/80 font-mono">
+                    {debugInfo}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="absolute bottom-8 left-0 right-0 text-center text-white/70 text-xs">
               <ScanLine className="h-5 w-5 mx-auto mb-1 opacity-50" />
@@ -210,8 +379,9 @@ const BarcodeScanner = ({
               <p className="text-white text-sm font-medium text-center">{error}</p>
               <button
                 onClick={handleRetry}
-                className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+                className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center gap-2"
               >
+                <RefreshCw className="h-4 w-4" />
                 Réessayer
               </button>
             </div>
@@ -221,17 +391,26 @@ const BarcodeScanner = ({
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${isScanning && !error ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+            <div className={`w-2 h-2 rounded-full ${isReady && !error ? 'bg-green-500 animate-pulse' : error ? 'bg-red-500' : 'bg-yellow-500'}`} />
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              {isScanning && !error ? 'Prêt à scanner' : error ? 'Erreur' : 'En attente'}
+              {error ? 'Erreur' : isReady ? (isScanningPaused ? 'Traitement...' : 'Prêt à scanner') : 'Initialisation...'}
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
-          >
-            Fermer
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleRetry}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Redémarrer"
+            >
+              <RefreshCw className="h-4 w-4 text-gray-500" />
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+            >
+              Fermer
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -238,7 +238,7 @@
     @apply p-4;
   }
 }
-/* Animation pour la ligne de scan */
+
 @keyframes scan-line {
   0% {
     top: 10%;

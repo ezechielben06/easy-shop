@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useZxing } from 'react-zxing'
-import { X, Camera, Loader2, Barcode, AlertCircle, ScanLine } from 'lucide-react'
+import { BrowserMultiFormatReader } from '@zxing/library'
+import { X, Loader2, Barcode, AlertCircle, ScanLine } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const BarcodeScanner = ({ 
@@ -13,37 +13,83 @@ const BarcodeScanner = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [scanCount, setScanCount] = useState(0)
+  const [isScanning, setIsScanning] = useState(false)
+  const videoRef = useRef(null)
+  const readerRef = useRef(null)
   const lastScanRef = useRef(null)
 
-  const { ref } = useZxing({
-    onResult: (result) => {
-      handleScan(result.getText())
-    },
-    onError: (err) => {
-      console.error('Erreur de scan:', err)
-      if (err?.message?.includes('Permission denied')) {
-        setError('Permission caméra refusée')
-        toast.error('Veuillez autoriser l\'accès à la caméra')
-      } else {
-        setError('Erreur d\'accès à la caméra')
-      }
-    },
-    constraints: {
-      facingMode: 'environment',
-      audio: false,
-    },
-    paused: !isOpen,
-  })
-
   useEffect(() => {
-    if (!isOpen) {
-      setError(null)
-      setScanCount(0)
+    if (isOpen) {
+      startScanner()
+    } else {
+      stopScanner()
+    }
+
+    return () => {
+      stopScanner()
     }
   }, [isOpen])
 
+  const startScanner = async () => {
+    try {
+      setError(null)
+      setIsScanning(true)
+
+      const codeReader = new BrowserMultiFormatReader()
+      readerRef.current = codeReader
+
+      // Démarrer avec la caméra par défaut
+      await codeReader.decodeFromVideoDevice(
+        undefined, // undefined = caméra par défaut
+        videoRef.current,
+        (result, err) => {
+          if (result) {
+            handleScan(result.getText())
+          }
+          if (err && !(err instanceof Error && err.message.includes('NotFoundException'))) {
+            console.warn('Erreur de scan:', err)
+          }
+        }
+      )
+
+    } catch (error) {
+      console.error('Erreur scanner:', error)
+      setError('Impossible d\'accéder à la caméra')
+      setIsScanning(false)
+      
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        toast.error('Veuillez autoriser l\'accès à la caméra')
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        toast.error('Aucune caméra trouvée')
+      } else {
+        toast.error('Erreur d\'accès à la caméra')
+      }
+    }
+  }
+
+  const stopScanner = async () => {
+    try {
+      setIsScanning(false)
+      if (readerRef.current) {
+        try {
+          await readerRef.current.reset()
+        } catch (e) {
+          // Ignorer l'erreur de reset
+        }
+        readerRef.current = null
+      }
+      if (videoRef.current && videoRef.current.srcObject) {
+        const tracks = videoRef.current.srcObject.getTracks()
+        tracks.forEach(track => track.stop())
+        videoRef.current.srcObject = null
+      }
+    } catch (error) {
+      console.error('Erreur arrêt scanner:', error)
+    }
+  }
+
   const handleScan = async (barcode) => {
-    if (loading) return
+    if (loading || !isScanning) return
     
     const now = Date.now()
     if (lastScanRef.current && now - lastScanRef.current < 2000) {
@@ -62,6 +108,12 @@ const BarcodeScanner = ({
       }
 
       setScanCount(prev => prev + 1)
+      
+      // Vibrer si disponible
+      if (navigator.vibrate) {
+        navigator.vibrate(200)
+      }
+      
       await onScan(barcode)
       
     } catch (error) {
@@ -73,10 +125,17 @@ const BarcodeScanner = ({
     }
   }
 
+  const handleRetry = () => {
+    stopScanner()
+    setTimeout(() => {
+      startScanner()
+    }, 500)
+  }
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
       <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl relative">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -104,9 +163,15 @@ const BarcodeScanner = ({
           )}
         </div>
 
-        {/* Scanner - avec z-index élevé pour éviter les superpositions */}
+        {/* Scanner */}
         <div className="relative aspect-square bg-black overflow-hidden" style={{ zIndex: 1 }}>
-          <div ref={ref} className="w-full h-full" />
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            playsInline
+            muted
+            autoPlay
+          />
 
           {/* Cadre de scan */}
           <div className="absolute inset-0 pointer-events-none">
@@ -140,9 +205,15 @@ const BarcodeScanner = ({
 
           {/* Error overlay */}
           {error && (
-            <div className="absolute bottom-16 left-4 right-4 bg-red-500/90 text-white text-sm p-3 rounded-xl flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 flex-shrink-0" />
-              <span>{error}</span>
+            <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-6">
+              <AlertCircle className="h-12 w-12 text-red-500 mb-3" />
+              <p className="text-white text-sm font-medium text-center">{error}</p>
+              <button
+                onClick={handleRetry}
+                className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+              >
+                Réessayer
+              </button>
             </div>
           )}
         </div>
@@ -150,8 +221,10 @@ const BarcodeScanner = ({
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs text-gray-500 dark:text-gray-400">Prêt à scanner</span>
+            <div className={`w-2 h-2 rounded-full ${isScanning && !error ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {isScanning && !error ? 'Prêt à scanner' : error ? 'Erreur' : 'En attente'}
+            </span>
           </div>
           <button
             onClick={onClose}

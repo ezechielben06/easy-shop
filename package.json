@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "@zxing/library": "^0.21.3",
     "date-fns": "^2.30.0",
     "framer-motion": "^13.1.1",
     "lucide-react": "^0.294.0",
@@ -20,7 +21,6 @@
     "react-hot-toast": "^2.4.1",
     "react-qr-barcode-scanner": "^2.1.28",
     "react-router-dom": "^6.20.0",
-    "react-zxing": "^3.0.0",
     "recharts": "^2.10.3"
   },
   "devDependencies": {

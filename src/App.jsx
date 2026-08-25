@@ -5,6 +5,7 @@ import ProtectedRoute from './components/common/ProtectedRoute'
 import Layout from './components/common/Layout'
 import BottomNav from './components/common/BottomNav'
 import PWAInstallPrompt from './components/common/PWAInstallPrompt'
+import ConnectionStatus from './components/common/ConnectionStatus'
 import Dashboard from './pages/Dashboard'
 import Sales from './pages/Sales'
 import NewSale from './pages/NewSale'
@@ -18,10 +19,39 @@ import Register from './pages/Register'
 
 function App() {
   return (
-    <Router>
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <AuthProvider>
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          <Toaster />
+          <Toaster 
+            position="top-center"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+                borderRadius: '12px',
+                padding: '12px 16px',
+              },
+              success: {
+                iconTheme: {
+                  primary: '#22c55e',
+                  secondary: '#fff',
+                },
+              },
+              error: {
+                iconTheme: {
+                  primary: '#ef4444',
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+          <ConnectionStatus />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />

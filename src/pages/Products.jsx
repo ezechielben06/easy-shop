@@ -424,7 +424,7 @@ const Products = () => {
                   type="number"
                   required
                   min="0"
-                  step="10"
+                  step="1"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   className="input"

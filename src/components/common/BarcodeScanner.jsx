@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import Quagga from 'quagga'
-import { X, Loader2, Barcode, AlertCircle, ScanLine, RefreshCw } from 'lucide-react'
+import { Html5Qrcode } from 'html5-qrcode'
+import { X, Loader2, Barcode, AlertCircle, ScanLine, RefreshCw, Camera } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const BarcodeScanner = ({ 
@@ -14,8 +14,6 @@ const BarcodeScanner = ({
   const [error, setError] = useState(null)
   const [scanCount, setScanCount] = useState(0)
   const [isReady, setIsReady] = useState(false)
-  const [isScanningPaused, setIsScanningPaused] = useState(false)
-  const [debugInfo, setDebugInfo] = useState('')
   const scannerRef = useRef(null)
   const containerRef = useRef(null)
   const lastScanRef = useRef(null)
@@ -46,181 +44,79 @@ const BarcodeScanner = ({
     try {
       setError(null)
       setIsReady(false)
-      setIsScanningPaused(false)
       
+      // Vider le conteneur
       containerRef.current.innerHTML = ''
 
-      // Configuration améliorée pour les codes-barres
+      const scanner = new Html5Qrcode('scanner-container')
+
       const config = {
-        inputStream: {
-          name: 'Live',
-          type: 'LiveStream',
-          target: containerRef.current,
-          constraints: {
-            facingMode: 'environment',
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-            aspectRatio: { ideal: 1.333 }
-          },
-        },
-        decoder: {
-          readers: [
-            'ean_reader',
-            'ean_8_reader',
-            'upc_reader',
-            'upc_e_reader',
-            'code_128_reader',
-            'code_39_reader',
-            'codabar_reader',
-            'i2of5_reader',
-            'code_93_reader'
-          ],
-          multiple: false,
-          debug: {
-            showCanvas: false,
-            showPatches: false,
-            showFoundPatches: false,
-            showSkeleton: false,
-            showLabels: false,
-            showPatchLabels: false,
-            showRemainingPatchLabels: false,
-            boxFromPatches: false,
-            showBarcode: false,
-            showFrequency: false,
-            showMinFrequency: false,
-            showPattern: false,
-            showMultipleLabels: false,
-            showSkeletonRemain: false,
-            showHolePoints: false,
-            showHole: false,
-            showBestCodes: false,
-          }
-        },
-        locate: true,
-        frequency: 10, // Réduit pour moins de faux positifs
-        numOfWorkers: 2,
-        halfSample: true // Meilleure performance
+        fps: 10,
+        qrbox: { width: 250, height: 100 },
+        aspectRatio: 1.0,
       }
 
-      Quagga.init(config, (err) => {
-        if (err) {
-          console.error('Erreur Quagga:', err)
-          setError('Erreur d\'initialisation de la caméra')
-          toast.error('Erreur d\'accès à la caméra')
-          return
-        }
-
+      const onSuccess = (decodedText) => {
         if (isMounted.current) {
-          setIsReady(true)
-          Quagga.start()
-          console.log('✅ Scanner Quagga démarré')
+          handleScan(decodedText)
         }
-      })
+      }
 
-      // Détection des codes-barres avec validation
-      Quagga.onDetected((result) => {
-        if (!result || !result.codeResult || !isMounted.current || isScanningPaused) return
-        
-        const code = result.codeResult.code
-        
-        // Valider le code détecté
-        if (code && isValidBarcode(code)) {
-          handleScan(code)
-        } else {
-          setDebugInfo(`Code invalide: ${code || 'vide'}`)
-        }
-      })
+      const onError = (err) => {
+        // Ignorer silencieusement les erreurs
+      }
 
-      Quagga.onProcessed((result) => {
-        // Ignorer silencieusement
-      })
+      scannerRef.current = scanner
 
-      scannerRef.current = Quagga
+      await scanner.start(
+        { facingMode: 'environment' },
+        config,
+        onSuccess,
+        onError
+      )
+
+      if (isMounted.current) {
+        setIsReady(true)
+      }
 
     } catch (err) {
       if (!isMounted.current) return
       console.error('Erreur scanner:', err)
       setError('Impossible d\'accéder à la caméra')
-      toast.error('Erreur d\'accès à la caméra')
+      
+      if (err.name === 'NotAllowedError') {
+        toast.error('Veuillez autoriser l\'accès à la caméra')
+      } else if (err.name === 'NotFoundError') {
+        toast.error('Aucune caméra trouvée')
+      } else {
+        toast.error('Erreur d\'accès à la caméra')
+      }
     }
   }
 
-  // Fonction de validation des codes-barres
-  const isValidBarcode = (code) => {
-    if (!code || typeof code !== 'string') return false
-    
-    // Nettoyer le code
-    const cleanCode = code.trim()
-    
-    // Vérifier la longueur minimale (les codes-barres ont au moins 8 caractères)
-    if (cleanCode.length < 8) return false
-    
-    // Vérifier si le code contient des caractères valides (chiffres principalement)
-    const isValidFormat = /^[0-9A-Z\-]+$/.test(cleanCode)
-    if (!isValidFormat) return false
-    
-    // Vérifier les formats courants
-    // EAN-13: 13 chiffres
-    if (/^\d{13}$/.test(cleanCode)) {
-      // Vérifier la somme de contrôle EAN-13
-      return validateEAN13(cleanCode)
+  const stopScanner = async () => {
+    try {
+      setIsReady(false)
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop()
+          await scannerRef.current.clear()
+        } catch (e) {}
+        scannerRef.current = null
+      }
+      if (containerRef.current) {
+        containerRef.current.innerHTML = ''
+      }
+    } catch (err) {
+      console.debug('Stop scanner error:', err)
     }
-    
-    // EAN-8: 8 chiffres
-    if (/^\d{8}$/.test(cleanCode)) {
-      return validateEAN8(cleanCode)
-    }
-    
-    // UPC-A: 12 chiffres
-    if (/^\d{12}$/.test(cleanCode)) {
-      return validateUPC(cleanCode)
-    }
-    
-    // Code-128, Code-39, etc. - on accepte si le format est bon
-    return cleanCode.length >= 8
-  }
-
-  // Validation EAN-13
-  const validateEAN13 = (code) => {
-    if (code.length !== 13) return false
-    let sum = 0
-    for (let i = 0; i < 12; i++) {
-      const digit = parseInt(code[i])
-      sum += (i % 2 === 0) ? digit : digit * 3
-    }
-    const checkDigit = (10 - (sum % 10)) % 10
-    return parseInt(code[12]) === checkDigit
-  }
-
-  // Validation EAN-8
-  const validateEAN8 = (code) => {
-    if (code.length !== 8) return false
-    let sum = 0
-    for (let i = 0; i < 7; i++) {
-      const digit = parseInt(code[i])
-      sum += (i % 2 === 0) ? digit * 3 : digit
-    }
-    const checkDigit = (10 - (sum % 10)) % 10
-    return parseInt(code[7]) === checkDigit
-  }
-
-  // Validation UPC-A
-  const validateUPC = (code) => {
-    if (code.length !== 12) return false
-    let sum = 0
-    for (let i = 0; i < 11; i++) {
-      const digit = parseInt(code[i])
-      sum += (i % 2 === 0) ? digit * 3 : digit
-    }
-    const checkDigit = (10 - (sum % 10)) % 10
-    return parseInt(code[11]) === checkDigit
   }
 
   const handleScan = async (barcode) => {
     if (loading) return
     
     const now = Date.now()
-    if (lastScanRef.current && now - lastScanRef.current < 2000) {
+    if (lastScanRef.current && now - lastScanRef.current < 1500) {
       return
     }
     lastScanRef.current = now
@@ -228,11 +124,15 @@ const BarcodeScanner = ({
     try {
       setLoading(true)
       setError(null)
-      setIsScanningPaused(true)
-      
-      // Nettoyer le code
+
       const cleanCode = barcode.trim()
-      
+
+      if (!cleanCode || cleanCode.length < 2) {
+        toast.warning('Code-barres invalide', { duration: 1500 })
+        setLoading(false)
+        return
+      }
+
       setScanCount(prev => prev + 1)
       
       if (navigator.vibrate) {
@@ -240,12 +140,26 @@ const BarcodeScanner = ({
       }
       
       toast.success(`✅ Code détecté: ${cleanCode}`, { duration: 2000 })
-      setDebugInfo(`Code: ${cleanCode}`)
       
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Pause avant de traiter
+      await new Promise(resolve => setTimeout(resolve, 300))
       
       if (isMounted.current) {
+        // Mettre en pause le scanner
+        if (scannerRef.current) {
+          try {
+            await scannerRef.current.stop()
+          } catch (e) {}
+        }
+        
         await onScan(cleanCode)
+        
+        // Redémarrer le scanner
+        setTimeout(() => {
+          if (isMounted.current && isOpen) {
+            startScanner()
+          }
+        }, 500)
       }
       
     } catch (err) {
@@ -254,39 +168,15 @@ const BarcodeScanner = ({
     } finally {
       if (isMounted.current) {
         setLoading(false)
-        setTimeout(() => {
-          if (isMounted.current) {
-            setIsScanningPaused(false)
-          }
-        }, 800)
       }
-    }
-  }
-
-  const stopScanner = () => {
-    try {
-      if (scannerRef.current) {
-        try {
-          scannerRef.current.stop()
-        } catch (e) {}
-        scannerRef.current = null
-      }
-      if (containerRef.current) {
-        containerRef.current.innerHTML = ''
-      }
-      setIsReady(false)
-      setIsScanningPaused(false)
-    } catch (err) {
-      console.debug('Stop scanner error:', err)
     }
   }
 
   const handleRetry = () => {
     if (!isMounted.current) return
     stopScanner()
-    setDebugInfo('')
     setTimeout(() => {
-      if (isMounted.current) {
+      if (isMounted.current && isOpen) {
         startScanner()
       }
     }, 500)
@@ -295,8 +185,8 @@ const BarcodeScanner = ({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl relative">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2">
@@ -324,7 +214,7 @@ const BarcodeScanner = ({
         </div>
 
         {/* Scanner */}
-        <div className="relative aspect-square bg-black overflow-hidden" style={{ zIndex: 1 }}>
+        <div className="relative aspect-square bg-black overflow-hidden">
           <div 
             ref={containerRef} 
             id="scanner-container"
@@ -344,17 +234,6 @@ const BarcodeScanner = ({
                 <div className="absolute left-0 right-0 h-0.5 bg-blue-500 shadow-lg shadow-blue-500/50 animate-scan-line" />
               </div>
             </div>
-
-            {/* Debug info */}
-            {debugInfo && (
-              <div className="absolute bottom-16 left-4 right-4 text-center">
-                <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 inline-block mx-auto">
-                  <p className="text-[10px] text-white/80 font-mono">
-                    {debugInfo}
-                  </p>
-                </div>
-              </div>
-            )}
 
             <div className="absolute bottom-8 left-0 right-0 text-center text-white/70 text-xs">
               <ScanLine className="h-5 w-5 mx-auto mb-1 opacity-50" />
@@ -393,7 +272,7 @@ const BarcodeScanner = ({
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${isReady && !error ? 'bg-green-500 animate-pulse' : error ? 'bg-red-500' : 'bg-yellow-500'}`} />
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              {error ? 'Erreur' : isReady ? (isScanningPaused ? 'Traitement...' : 'Prêt à scanner') : 'Initialisation...'}
+              {error ? 'Erreur' : isReady ? 'Prêt à scanner' : 'Initialisation...'}
             </span>
           </div>
           <div className="flex gap-2">

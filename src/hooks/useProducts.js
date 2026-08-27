@@ -13,7 +13,6 @@ export const useProducts = () => {
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false)
-      // Recharger les données quand la connexion revient
       fetchProducts()
     }
     const handleOffline = () => {
@@ -30,18 +29,17 @@ export const useProducts = () => {
     }
   }, [])
 
+  // Récupérer tous les produits
   const fetchProducts = async (filters = {}) => {
     try {
       setLoading(true)
       setError(null)
       
-      // Si en ligne, essayer de récupérer depuis Supabase
       if (navigator.onLine) {
         let query = supabase
           .from(TABLES.PRODUCTS)
           .select('*')
 
-        // Appliquer les filtres
         if (filters.category) {
           query = query.eq('category', filters.category)
         }
@@ -60,7 +58,6 @@ export const useProducts = () => {
         if (error) throw error
         
         if (data) {
-          // Mettre en cache les données
           await cacheData('products', data)
           setProducts(data)
           setIsOffline(false)
@@ -68,7 +65,6 @@ export const useProducts = () => {
         }
       }
 
-      // Si hors ligne ou erreur, utiliser le cache
       const cached = await getCachedData('products')
       if (cached && cached.length > 0) {
         setProducts(cached)
@@ -86,7 +82,6 @@ export const useProducts = () => {
       setError(error.message)
       console.error('Error fetching products:', error)
       
-      // En cas d'erreur, essayer le cache
       const cached = await getCachedData('products')
       if (cached && cached.length > 0) {
         setProducts(cached)
@@ -102,11 +97,61 @@ export const useProducts = () => {
     }
   }
 
+  // Récupérer un produit par ID (avec fallback Supabase si hors cache)
+  const getProductById = async (id) => {
+    try {
+      // 1. Chercher d'abord dans le cache local
+      const cachedProducts = await getCachedData('products')
+      const foundInCache = cachedProducts?.find(p => p.id === id)
+      
+      if (foundInCache) {
+        return foundInCache
+      }
+
+      // 2. Chercher dans le state products
+      const foundInState = products.find(p => p.id === id)
+      if (foundInState) {
+        return foundInState
+      }
+
+      // 3. Si en ligne, chercher dans Supabase
+      if (navigator.onLine) {
+        const { data, error } = await supabase
+          .from(TABLES.PRODUCTS)
+          .select('*')
+          .eq('id', id)
+          .single()
+
+        if (error) throw error
+        
+        if (data) {
+          // Mettre à jour le cache avec ce produit
+          const currentCache = await getCachedData('products') || []
+          const exists = currentCache.some(p => p.id === data.id)
+          if (!exists) {
+            await cacheData('products', [...currentCache, data])
+          }
+          return data
+        }
+      }
+
+      return null
+    } catch (error) {
+      console.error('Error fetching product by ID:', error)
+      return null
+    }
+  }
+
+  // Récupérer un produit par ID (synchrone - depuis le state)
+  const getProductFromState = (id) => {
+    return products.find(p => p.id === id)
+  }
+
+  // Créer un produit
   const createProduct = async (productData) => {
     try {
       setLoading(true)
       
-      // Générer un SKU unique
       const sku = `${productData.name.substring(0, 3).toUpperCase()}${Date.now().toString().slice(-6)}`
       
       const newProduct = { 
@@ -117,18 +162,14 @@ export const useProducts = () => {
         updated_at: new Date().toISOString()
       }
 
-      // Si hors ligne, sauvegarder en cache
       if (!navigator.onLine) {
-        // Ajouter un ID temporaire
         const tempId = `temp-${Date.now()}`
         newProduct.id = tempId
         
-        // Sauvegarder en cache
         const currentProducts = await getCachedData('products')
         await cacheData('products', [...currentProducts, newProduct])
         setProducts([...products, newProduct])
         
-        // Sauvegarder pour sync ultérieure
         await addPendingChange({
           type: 'create',
           table: TABLES.PRODUCTS,
@@ -140,7 +181,6 @@ export const useProducts = () => {
         return newProduct
       }
 
-      // En ligne, créer dans Supabase
       const { data, error } = await supabase
         .from(TABLES.PRODUCTS)
         .insert([newProduct])
@@ -149,7 +189,6 @@ export const useProducts = () => {
 
       if (error) throw error
       
-      // Mettre à jour le cache
       const currentProducts = await getCachedData('products')
       await cacheData('products', [...currentProducts, data])
       setProducts([...products, data])
@@ -165,6 +204,7 @@ export const useProducts = () => {
     }
   }
 
+  // Mettre à jour un produit
   const updateProduct = async (id, updates) => {
     try {
       setLoading(true)
@@ -174,7 +214,6 @@ export const useProducts = () => {
         updated_at: new Date().toISOString()
       }
 
-      // Si hors ligne, mettre à jour en cache
       if (!navigator.onLine) {
         const currentProducts = await getCachedData('products')
         const updatedProducts = currentProducts.map(p => 
@@ -194,7 +233,6 @@ export const useProducts = () => {
         return { ...updatedData, id }
       }
 
-      // En ligne, mettre à jour dans Supabase
       const { data, error } = await supabase
         .from(TABLES.PRODUCTS)
         .update(updatedData)
@@ -204,7 +242,6 @@ export const useProducts = () => {
 
       if (error) throw error
       
-      // Mettre à jour le cache
       const currentProducts = await getCachedData('products')
       const updatedProducts = currentProducts.map(p => 
         p.id === id ? { ...p, ...data } : p
@@ -223,14 +260,13 @@ export const useProducts = () => {
     }
   }
 
+  // Supprimer un produit
   const deleteProduct = async (id) => {
     try {
       setLoading(true)
       
-      // Récupérer l'URL de l'image pour suppression
       const productToDelete = products.find(p => p.id === id)
       
-      // Si hors ligne, supprimer en cache
       if (!navigator.onLine) {
         const currentProducts = await getCachedData('products')
         const updatedProducts = currentProducts.filter(p => p.id !== id)
@@ -248,7 +284,6 @@ export const useProducts = () => {
         return true
       }
 
-      // Supprimer l'image du storage si elle existe
       if (productToDelete?.image_url) {
         try {
           const urlParts = productToDelete.image_url.split('/')
@@ -263,7 +298,6 @@ export const useProducts = () => {
         }
       }
 
-      // Supprimer de Supabase
       const { error } = await supabase
         .from(TABLES.PRODUCTS)
         .delete()
@@ -271,7 +305,6 @@ export const useProducts = () => {
 
       if (error) throw error
       
-      // Mettre à jour le cache
       const currentProducts = await getCachedData('products')
       const updatedProducts = currentProducts.filter(p => p.id !== id)
       await cacheData('products', updatedProducts)
@@ -288,6 +321,7 @@ export const useProducts = () => {
     }
   }
 
+  // Mettre à jour le stock
   const updateStock = async (productId, quantity, type, reason = '') => {
     try {
       setLoading(true)
@@ -312,7 +346,6 @@ export const useProducts = () => {
         updated_at: new Date().toISOString()
       }
 
-      // Si hors ligne, mettre à jour en cache
       if (!navigator.onLine) {
         const currentProducts = await getCachedData('products')
         const updatedProducts = currentProducts.map(p => 
@@ -332,7 +365,6 @@ export const useProducts = () => {
         return true
       }
 
-      // En ligne
       const { error: updateError } = await supabase
         .from(TABLES.PRODUCTS)
         .update(stockUpdate)
@@ -340,7 +372,6 @@ export const useProducts = () => {
       
       if (updateError) throw updateError
       
-      // Enregistrer le mouvement
       const { error: movementError } = await supabase
         .from('stock_movements')
         .insert([{
@@ -355,7 +386,6 @@ export const useProducts = () => {
       
       if (movementError) throw movementError
       
-      // Mettre à jour le cache
       const currentProducts = await getCachedData('products')
       const updatedProducts = currentProducts.map(p => 
         p.id === productId ? { ...p, ...stockUpdate } : p
@@ -374,13 +404,12 @@ export const useProducts = () => {
     }
   }
 
+  // Récupérer un produit par SKU
   const getProductBySku = async (sku) => {
     try {
-      // Chercher d'abord dans les produits en mémoire
       const found = products.find(p => p.sku === sku)
       if (found) return found
 
-      // Si en ligne, chercher dans Supabase
       if (navigator.onLine) {
         const { data, error } = await supabase
           .from(TABLES.PRODUCTS)
@@ -399,12 +428,11 @@ export const useProducts = () => {
     }
   }
 
+  // Récupérer les produits en stock faible
   const getLowStockProducts = async () => {
     try {
-      // Filtrer en mémoire
       const lowStock = products.filter(p => p.quantity <= p.min_quantity)
       
-      // Si en ligne, rafraîchir les données
       if (navigator.onLine) {
         const { data, error } = await supabase
           .from(TABLES.PRODUCTS)
@@ -423,12 +451,11 @@ export const useProducts = () => {
     }
   }
 
+  // Récupérer toutes les catégories
   const getCategories = async () => {
     try {
-      // Utiliser les produits en mémoire
       const categories = [...new Set(products.map(p => p.category).filter(Boolean))]
       
-      // Si en ligne, rafraîchir
       if (navigator.onLine) {
         const { data, error } = await supabase
           .from(TABLES.PRODUCTS)
@@ -449,7 +476,7 @@ export const useProducts = () => {
     }
   }
 
-  // Fonctions pour les changements en attente
+  // Fonctions pour les changements en attente (hors ligne)
   const getPendingChanges = async () => {
     const changes = await getCachedData('pending_changes')
     return changes || []
@@ -476,7 +503,10 @@ export const useProducts = () => {
     deleteProduct,
     updateStock,
     getProductBySku,
+    getProductById,        // ← NOUVEAU : récupère un produit par ID (async)
+    getProductFromState,   // ← NOUVEAU : récupère depuis le state (sync)
     getLowStockProducts,
-    getCategories
+    getCategories,
+    getPendingChanges
   }
 }

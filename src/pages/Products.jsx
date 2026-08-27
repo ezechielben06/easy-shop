@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useProducts } from '../hooks/useProducts'
 import ImageUpload from '../components/products/ImageUpload'
 import BarcodeScanner from '../components/common/BarcodeScanner'
@@ -11,16 +12,17 @@ import {
   Package, 
   AlertTriangle, 
   X,
-  Image as ImageIcon,
   Loader2,
   Grid,
   List,
   Barcode,
-  ScanLine
+  ScanLine,
+  Eye
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const Products = () => {
+  const navigate = useNavigate()
   const { products, loading, fetchProducts, createProduct, updateProduct, deleteProduct } = useProducts()
   const [showForm, setShowForm] = useState(false)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
@@ -73,7 +75,6 @@ const Products = () => {
 
   const handleBarcodeScan = async (barcode) => {
     try {
-      // Vérifier si le produit existe déjà avec ce code-barres
       const existingProduct = products.find(p => p.barcode === barcode)
 
       if (existingProduct) {
@@ -83,7 +84,6 @@ const Products = () => {
         return
       }
 
-      // Pré-remplir le formulaire avec le code-barres
       setFormData({
         name: '',
         description: '',
@@ -243,21 +243,21 @@ const Products = () => {
   const lowStockCount = products.filter(p => p.quantity <= p.min_quantity).length
 
   return (
-    <div className="space-y-6 pb-24 animate-fade-in">
+    <div className="space-y-4 pb-24 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
             Produits
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Gérez votre catalogue produits
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {products.length} produits en stock
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowBarcodeScanner(true)}
-            className="btn-secondary flex items-center gap-2"
+            className="btn-secondary flex items-center gap-2 text-sm py-2 px-3"
           >
             <ScanLine className="h-4 w-4" />
             <span className="hidden sm:inline">Scanner</span>
@@ -268,10 +268,10 @@ const Products = () => {
               resetForm()
               setShowForm(!showForm)
             }}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center gap-2 text-sm py-2 px-3"
           >
             <Plus className="h-4 w-4" />
-            Nouveau produit
+            Ajouter
           </button>
         </div>
       </div>
@@ -286,58 +286,32 @@ const Products = () => {
       />
 
       {/* Stats rapides */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="stat-icon">
-              <Package className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="stat-label">Total produits</p>
-              <p className="stat-value">{totalProducts}</p>
-            </div>
-          </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 text-center shadow-sm">
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalProducts}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Total produits</p>
         </div>
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="stat-icon bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
-              <Package className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="stat-label">En stock</p>
-              <p className="stat-value">{totalStock}</p>
-            </div>
-          </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 text-center shadow-sm">
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{totalStock}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">En stock</p>
         </div>
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="stat-icon bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400">
-              <Package className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="stat-label">Valeur totale</p>
-              <p className="stat-value">{totalValue.toLocaleString()} FCFA</p>
-            </div>
-          </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 text-center shadow-sm">
+          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            {totalValue.toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Valeur totale</p>
         </div>
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className={`stat-icon ${lowStockCount > 0 ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : 'bg-gray-50 dark:bg-gray-800 text-gray-400'}`}>
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="stat-label">Stock faible</p>
-              <p className={`stat-value ${lowStockCount > 0 ? 'text-orange-500' : 'text-gray-400'}`}>
-                {lowStockCount}
-              </p>
-            </div>
-          </div>
+        <div className={`bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 text-center shadow-sm ${lowStockCount > 0 ? 'border-orange-200 dark:border-orange-800' : ''}`}>
+          <p className={`text-2xl font-bold ${lowStockCount > 0 ? 'text-orange-500' : 'text-gray-400'}`}>
+            {lowStockCount}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Stock faible</p>
         </div>
       </div>
 
       {/* Formulaire */}
       {showForm && (
-        <div className="card p-6 border-blue-200/60 dark:border-blue-800/30 bg-blue-50/30 dark:bg-blue-900/5">
+        <div className="mx-4 p-4 bg-white dark:bg-gray-800 rounded-2xl border border-blue-200/60 dark:border-blue-800/30 shadow-lg">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Package className="h-5 w-5 text-blue-500" />
@@ -351,7 +325,7 @@ const Products = () => {
               }}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5 text-gray-500" />
             </button>
           </div>
 
@@ -359,7 +333,9 @@ const Products = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Image */}
               <div className="md:col-span-2">
-                <label className="input-label">Image du produit</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Image du produit
+                </label>
                 <ImageUpload
                   productId={editingProduct?.id || 'new'}
                   currentImage={formData.image_url}
@@ -369,7 +345,7 @@ const Products = () => {
 
               {/* Code-barres */}
               <div>
-                <label className="input-label flex items-center gap-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1">
                   <Barcode className="h-4 w-4" />
                   Code-barres
                 </label>
@@ -378,37 +354,44 @@ const Products = () => {
                     type="text"
                     value={formData.barcode}
                     onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                    className="input flex-1"
+                    className="flex-1 w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 py-2.5 px-4 text-sm"
                     placeholder="Scannez ou entrez le code"
                   />
                   <button
                     type="button"
                     onClick={() => setShowBarcodeScanner(true)}
-                    className="btn-secondary px-3 flex items-center gap-1"
+                    className="btn-secondary px-3 flex items-center gap-1 text-sm"
                   >
                     <ScanLine className="h-4 w-4" />
                   </button>
                 </div>
               </div>
 
+              {/* Nom */}
               <div>
-                <label className="input-label">Nom du produit *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Nom du produit *
+                </label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="input"
+                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 py-2.5 px-4 text-sm"
                   placeholder="Ex: T-shirt Premium"
                 />
               </div>
+
+              {/* Catégorie */}
               <div>
-                <label className="input-label">Catégorie</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Catégorie
+                </label>
                 <input
                   type="text"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="input"
+                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 py-2.5 px-4 text-sm"
                   placeholder="Ex: Vêtements, Électronique..."
                   list="categories-list"
                 />
@@ -418,8 +401,12 @@ const Products = () => {
                   ))}
                 </datalist>
               </div>
+
+              {/* Prix */}
               <div>
-                <label className="input-label">Prix de vente (FCFA) *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Prix de vente (FCFA) *
+                </label>
                 <input
                   type="number"
                   required
@@ -427,47 +414,61 @@ const Products = () => {
                   step="1"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  className="input"
+                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 py-2.5 px-4 text-sm"
                   placeholder="0"
                 />
               </div>
+
+              {/* Quantité */}
               <div>
-                <label className="input-label">Quantité en stock *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Quantité en stock *
+                </label>
                 <input
                   type="number"
                   required
                   min="0"
+                  step="1"
                   value={formData.quantity}
                   onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  className="input"
+                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 py-2.5 px-4 text-sm"
                   placeholder="0"
                 />
               </div>
+
+              {/* Stock minimum */}
               <div>
-                <label className="input-label">Stock minimum *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Stock minimum *
+                </label>
                 <input
                   type="number"
                   required
                   min="1"
+                  step="1"
                   value={formData.min_quantity}
                   onChange={(e) => setFormData({ ...formData, min_quantity: e.target.value })}
-                  className="input"
+                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 py-2.5 px-4 text-sm"
                   placeholder="5"
                 />
               </div>
+
+              {/* Description */}
               <div className="md:col-span-2">
-                <label className="input-label">Description</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Description
+                </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="input"
+                  className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 py-2.5 px-4 text-sm"
                   rows="3"
                   placeholder="Description du produit..."
                 />
               </div>
             </div>
             
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -475,11 +476,11 @@ const Products = () => {
                   setEditingProduct(null)
                   resetForm()
                 }}
-                className="btn-secondary"
+                className="btn-secondary text-sm py-2.5 px-5"
               >
                 Annuler
               </button>
-              <button type="submit" className="btn-primary" disabled={loading}>
+              <button type="submit" className="btn-primary text-sm py-2.5 px-5" disabled={loading}>
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
@@ -495,7 +496,7 @@ const Products = () => {
       )}
 
       {/* Filtres et recherche */}
-      <div className="card p-4">
+      <div className="mx-4 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -504,7 +505,7 @@ const Products = () => {
               placeholder="Rechercher un produit..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input pl-9"
+              className="w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 py-2 pl-9 pr-3 text-sm"
             />
           </div>
           
@@ -512,7 +513,7 @@ const Products = () => {
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="input min-w-[130px]"
+              className="rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 py-2 px-3 text-sm min-w-[120px]"
             >
               <option value="all">Toutes catégories</option>
               {categories.map(cat => (
@@ -523,25 +524,25 @@ const Products = () => {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="input min-w-[100px]"
+              className="rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 py-2 px-3 text-sm min-w-[100px]"
             >
               <option value="name">Nom</option>
               <option value="price">Prix</option>
               <option value="stock">Stock</option>
             </select>
 
-            <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
+            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-gray-700 shadow' : ''}`}
+                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-gray-600 shadow' : ''}`}
               >
-                <Grid className="h-4 w-4" />
+                <Grid className="h-4 w-4 text-gray-600 dark:text-gray-300" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-700 shadow' : ''}`}
+                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-600 shadow' : ''}`}
               >
-                <List className="h-4 w-4" />
+                <List className="h-4 w-4 text-gray-600 dark:text-gray-300" />
               </button>
             </div>
           </div>
@@ -554,7 +555,7 @@ const Products = () => {
           <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
         </div>
       ) : filteredProducts.length === 0 ? (
-        <div className="card p-12 text-center">
+        <div className="mx-4 p-12 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 text-center shadow-sm">
           <Package className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
           <p className="text-gray-500 dark:text-gray-400 font-medium">
             {searchTerm ? 'Aucun produit trouvé' : 'Aucun produit disponible'}
@@ -566,7 +567,7 @@ const Products = () => {
                 resetForm()
                 setShowForm(true)
               }}
-              className="btn-primary mt-4"
+              className="btn-primary mt-4 inline-flex items-center gap-2 text-sm py-2.5 px-5"
             >
               <Plus className="h-4 w-4" />
               Ajouter votre premier produit
@@ -574,18 +575,19 @@ const Products = () => {
           )}
         </div>
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-3 px-4">
           {filteredProducts.map((product) => (
             <div
               key={product.id}
-              className="card p-4 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
+              className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+              onClick={() => navigate(`/products/${product.id}`)}
             >
-              <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700">
+              <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-700">
                 {product.image_url ? (
                   <img
                     src={product.image_url}
                     alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     onError={(e) => { e.target.style.display = 'none' }}
                   />
                 ) : (
@@ -594,7 +596,7 @@ const Products = () => {
                   </div>
                 )}
                 {product.quantity <= product.min_quantity && (
-                  <div className="absolute top-2 right-2 badge-red flex items-center gap-1">
+                  <div className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
                     Stock faible
                   </div>
@@ -605,14 +607,18 @@ const Products = () => {
                     {product.barcode.slice(0, 8)}...
                   </div>
                 )}
+                <div className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Eye className="h-3 w-3" />
+                  Détail
+                </div>
               </div>
 
-              <div className="mt-3">
+              <div className="p-3">
                 <h4 className="font-semibold text-gray-900 dark:text-white truncate text-sm">
                   {product.name}
                 </h4>
                 {product.category && (
-                  <span className="badge-blue text-xs">
+                  <span className="inline-block text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full mt-0.5">
                     {product.category}
                   </span>
                 )}
@@ -620,21 +626,27 @@ const Products = () => {
                   <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
                     {product.price.toLocaleString()} FCFA
                   </span>
-                  <span className={`text-xs ${product.quantity <= product.min_quantity ? 'text-orange-500' : 'text-emerald-500'}`}>
+                  <span className={`text-xs font-medium ${product.quantity <= product.min_quantity ? 'text-orange-500' : 'text-emerald-500'}`}>
                     Stock: {product.quantity}
                   </span>
                 </div>
                 <div className="flex gap-2 mt-3">
                   <button
-                    onClick={() => handleEdit(product)}
-                    className="flex-1 btn-secondary text-xs py-1.5"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleEdit(product)
+                    }}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium py-1.5 px-2 rounded-xl transition-colors flex items-center justify-center gap-1"
                   >
                     <Edit2 className="h-3 w-3" />
                     Modifier
                   </button>
                   <button
-                    onClick={() => handleDelete(product.id)}
-                    className="btn-danger text-xs py-1.5 px-3"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDelete(product.id)
+                    }}
+                    className="bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 text-xs font-medium py-1.5 px-3 rounded-xl transition-colors"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -644,70 +656,88 @@ const Products = () => {
           ))}
         </div>
       ) : (
-        <div className="card overflow-hidden">
-          <div className="table-container">
-            <table className="table">
-              <thead>
+        <div className="mx-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-800/50">
                 <tr>
-                  <th>Produit</th>
-                  <th>Catégorie</th>
-                  <th className="text-right">Prix</th>
-                  <th className="text-right">Stock</th>
-                  <th className="text-right">Code</th>
-                  <th className="text-right">Statut</th>
-                  <th className="text-right">Actions</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Produit</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Catégorie</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Prix</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Stock</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Code</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {filteredProducts.map((product) => (
-                  <tr key={product.id}>
-                    <td>
+                  <tr 
+                    key={product.id} 
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/products/${product.id}`)}
+                  >
+                    <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         {product.image_url ? (
                           <img
                             src={product.image_url}
                             alt={product.name}
-                            className="w-10 h-10 object-cover rounded-lg"
+                            className="w-10 h-10 object-cover rounded-lg flex-shrink-0"
                             onError={(e) => { e.target.style.display = 'none' }}
                           />
                         ) : (
-                          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
                             <Package className="h-5 w-5 text-gray-400" />
                           </div>
                         )}
-                        <span className="font-medium">{product.name}</span>
+                        <span className="font-medium text-gray-900 dark:text-white truncate max-w-[100px]">
+                          {product.name}
+                        </span>
                       </div>
                     </td>
-                    <td>{product.category || '-'}</td>
-                    <td className="text-right font-medium text-blue-600 dark:text-blue-400">
+                    <td className="py-3 px-4 hidden md:table-cell text-gray-500 dark:text-gray-400">
+                      {product.category || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-right font-medium text-blue-600 dark:text-blue-400">
                       {product.price.toLocaleString()} FCFA
                     </td>
-                    <td className="text-right">
-                      <span className={product.quantity <= product.min_quantity ? 'text-orange-500' : 'text-emerald-500'}>
+                    <td className="py-3 px-4 text-right">
+                      <span className={`font-medium ${product.quantity <= product.min_quantity ? 'text-orange-500' : 'text-emerald-500'}`}>
                         {product.quantity}
                       </span>
                     </td>
-                    <td className="text-right text-xs text-gray-400">
-                      {product.barcode ? product.barcode.slice(0, 10) : '-'}
+                    <td className="py-3 px-4 text-right hidden lg:table-cell text-xs text-gray-400">
+                      {product.barcode ? product.barcode.slice(0, 12) : '-'}
                     </td>
-                    <td className="text-right">
-                      {product.quantity <= product.min_quantity ? (
-                        <span className="badge-red">⚠️ Stock faible</span>
-                      ) : (
-                        <span className="badge-green">✅ OK</span>
-                      )}
-                    </td>
-                    <td className="text-right">
+                    <td className="py-3 px-4 text-right">
                       <div className="flex justify-end gap-1">
                         <button
-                          onClick={() => handleEdit(product)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/products/${product.id}`)
+                          }}
+                          className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                          title="Voir le détail"
+                        >
+                          <Eye className="h-4 w-4 text-blue-500" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEdit(product)
+                          }}
                           className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                          title="Modifier"
                         >
                           <Edit2 className="h-4 w-4 text-gray-500" />
                         </button>
                         <button
-                          onClick={() => handleDelete(product.id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(product.id)
+                          }}
                           className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title="Supprimer"
                         >
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </button>

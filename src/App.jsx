@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard'
 import Sales from './pages/Sales'
 import NewSale from './pages/NewSale'
 import Products from './pages/Products'
+import ProductDetail from './pages/ProductDetail'  // Ajout
 import Stock from './pages/Stock'
 import DailyInventory from './pages/DailyInventory'
 import Reports from './pages/Reports'
@@ -62,6 +63,7 @@ function App() {
                 <Route path="sales" element={<Sales />} />
                 <Route path="sales/new" element={<NewSale />} />
                 <Route path="products" element={<Products />} />
+                <Route path="products/:id" element={<ProductDetail />} />  {/* Ajout */}
                 <Route path="stock" element={<Stock />} />
                 <Route path="inventory" element={<DailyInventory />} />
                 <Route path="reports" element={<Reports />} />

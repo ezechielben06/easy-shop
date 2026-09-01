@@ -3,60 +3,111 @@ import { supabase } from '../../lib/supabaseClient'
 import { Upload, Loader2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+// Fonction de compression d'image
+const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.7) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        // Calculer les nouvelles dimensions
+        let width = img.width
+        let height = img.height
+        
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height)
+          width = Math.round(width * ratio)
+          height = Math.round(height * ratio)
+        }
+        
+        // Créer le canvas
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+        
+        // Convertir en blob
+        canvas.toBlob((blob) => {
+          resolve(blob)
+        }, 'image/jpeg', quality)
+      }
+      img.src = e.target.result
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
 const ImageUpload = ({ productId, currentImage, onImageUploaded }) => {
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState(currentImage || null)
+  const [progress, setProgress] = useState(0)
   const fileInputRef = useRef(null)
 
   const handleFileSelect = async (e) => {
     const file = e.target.files[0]
     if (!file) return
 
+    // Vérifications
     if (!file.type.startsWith('image/')) {
       toast.error('Veuillez sélectionner une image')
       return
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('L\'image ne doit pas dépasser 5MB')
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("L'image ne doit pas dépasser 10MB")
       return
     }
 
-    // Si c'est un nouveau produit, on garde l'image en mémoire
+    // Si nouveau produit, on garde l'image en mémoire (compressée)
     if (!productId || productId === 'new') {
+      setProgress(30)
+      const compressed = await compressImage(file)
       const reader = new FileReader()
       reader.onload = (e) => {
-        const tempUrl = e.target.result
-        setPreview(tempUrl)
+        setPreview(e.target.result)
+        setProgress(100)
         if (onImageUploaded) {
-          onImageUploaded(tempUrl)
+          onImageUploaded(e.target.result)
         }
-        toast.success('Image ajoutée (sera sauvegardée à l\'enregistrement)')
+        toast.success('Image compressée et prête')
+        setTimeout(() => setProgress(0), 500)
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(compressed)
       return
     }
 
-    // Pour un produit existant, upload direct
+    // Pour un produit existant, upload direct avec compression
     await uploadImage(file)
   }
 
   const uploadImage = async (file) => {
     try {
       setUploading(true)
+      setProgress(10)
 
-      const fileExt = file.name.split('.').pop()
+      // Compression
+      setProgress(30)
+      const compressed = await compressImage(file, 800, 800, 0.7)
+      setProgress(60)
+
+      // Générer un nom de fichier
+      const fileExt = 'jpg'
       const fileName = `${productId}-${Date.now()}.${fileExt}`
       const filePath = `products/${fileName}`
 
-      // Upload vers Supabase Storage
+      // Upload
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(filePath, file)
+        .upload(filePath, compressed, {
+          cacheControl: '3600',
+          upsert: true,
+        })
 
       if (uploadError) throw uploadError
+      setProgress(80)
 
-      // Obtenir l'URL publique
+      // Récupérer l'URL publique
       const { data: { publicUrl } } = supabase.storage
         .from('product-images')
         .getPublicUrl(filePath)
@@ -70,11 +121,14 @@ const ImageUpload = ({ productId, currentImage, onImageUploaded }) => {
       if (updateError) throw updateError
 
       setPreview(publicUrl)
+      setProgress(100)
       toast.success('Image uploadée avec succès !')
       
       if (onImageUploaded) {
         onImageUploaded(publicUrl)
       }
+
+      setTimeout(() => setProgress(0), 500)
 
     } catch (error) {
       console.error('Error uploading image:', error)
@@ -87,52 +141,10 @@ const ImageUpload = ({ productId, currentImage, onImageUploaded }) => {
     }
   }
 
-  // Fonction pour uploader une image temporaire après création du produit
-  const uploadTempImage = async (base64Image, productId) => {
-    try {
-      // Convertir base64 en Blob
-      const response = await fetch(base64Image)
-      const blob = await response.blob()
-      const file = new File([blob], `${productId}-${Date.now()}.jpg`, { type: 'image/jpeg' })
-
-      const filePath = `products/${file.name}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath)
-
-      // Mettre à jour le produit
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({ image_url: publicUrl })
-        .eq('id', productId)
-
-      if (updateError) throw updateError
-
-      setPreview(publicUrl)
-      if (onImageUploaded) {
-        onImageUploaded(publicUrl)
-      }
-      toast.success('Image sauvegardée !')
-
-      return publicUrl
-    } catch (error) {
-      console.error('Error uploading temp image:', error)
-      toast.error('Erreur lors de la sauvegarde de l\'image')
-      return null
-    }
-  }
-
   const removeImage = async () => {
     if (!preview) return
 
-    // Si c'est une URL temporaire (data:image)
+    // Image temporaire
     if (preview.startsWith('data:image')) {
       setPreview(null)
       if (onImageUploaded) {
@@ -144,7 +156,6 @@ const ImageUpload = ({ productId, currentImage, onImageUploaded }) => {
 
     try {
       setUploading(true)
-
       const urlParts = preview.split('/')
       const fileName = urlParts[urlParts.length - 1]
       const filePath = `products/${fileName}`
@@ -175,6 +186,16 @@ const ImageUpload = ({ productId, currentImage, onImageUploaded }) => {
 
   return (
     <div className="space-y-3">
+      {/* Barre de progression */}
+      {progress > 0 && progress < 100 && (
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+          <div 
+            className="bg-blue-500 h-2 transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+
       <div className="relative">
         {preview ? (
           <div className="relative group">
@@ -199,6 +220,11 @@ const ImageUpload = ({ productId, currentImage, onImageUploaded }) => {
                 Supprimer
               </button>
             </div>
+            {uploading && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-xl">
+                <Loader2 className="h-8 w-8 text-white animate-spin" />
+              </div>
+            )}
           </div>
         ) : (
           <div
@@ -209,6 +235,7 @@ const ImageUpload = ({ productId, currentImage, onImageUploaded }) => {
               <div className="flex flex-col items-center gap-2">
                 <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
                 <p className="text-sm text-gray-500 dark:text-gray-400">Upload en cours...</p>
+                <p className="text-xs text-gray-400">{Math.round(progress)}%</p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2">
@@ -220,7 +247,7 @@ const ImageUpload = ({ productId, currentImage, onImageUploaded }) => {
                     Cliquez pour ajouter une image
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    PNG, JPG, WEBP (max 5MB)
+                    PNG, JPG, WEBP (max 10MB) - Compressé automatiquement
                   </p>
                 </div>
               </div>
@@ -248,6 +275,3 @@ const ImageUpload = ({ productId, currentImage, onImageUploaded }) => {
 }
 
 export default ImageUpload
-
-// Exporter la fonction uploadTempImage pour l'utiliser dans Products
-export const uploadTempImage = ImageUpload.uploadTempImage

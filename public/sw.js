@@ -1,43 +1,57 @@
-const CACHE_NAME = 'easy-shop-v2'
-const STATIC_CACHE = 'easy-shop-static-v2'
-const DYNAMIC_CACHE = 'easy-shop-dynamic-v2'
-const API_CACHE = 'easy-shop-api-v2'
+const CACHE_NAME = 'easy-shop-v3'
+const STATIC_CACHE = 'easy-shop-static-v3'
+const DYNAMIC_CACHE = 'easy-shop-dynamic-v3'
+const API_CACHE = 'easy-shop-api-v3'
 
-// Fichiers à mettre en cache
+// Fichiers statiques à mettre en cache
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
   '/offline.html',
+  '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png'
+]
+
+// Styles et scripts à mettre en cache dynamiquement
+const CACHE_URIS = [
+  '/src/main.jsx',
+  '/src/App.jsx',
+  '/src/index.css'
 ]
 
 // Installation
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then(cache => {
-        console.log('📦 Cache statique ouvert')
+    Promise.all([
+      caches.open(STATIC_CACHE).then(cache => {
+        console.log('📦 Cache statique')
         return cache.addAll(STATIC_ASSETS)
+      }),
+      caches.open(DYNAMIC_CACHE).then(cache => {
+        console.log('📦 Cache dynamique')
+        return cache.addAll(CACHE_URIS)
       })
-      .then(() => self.skipWaiting())
+    ])
+    .then(() => self.skipWaiting())
   )
 })
 
-// Activation
+// Activation - nettoyer les anciens caches
 self.addEventListener('activate', event => {
   const cacheWhitelist = [STATIC_CACHE, DYNAMIC_CACHE, API_CACHE]
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
+          if (!cacheWhitelist.includes(cacheName)) {
+            console.log('🗑️ Suppression cache:', cacheName)
             return caches.delete(cacheName)
           }
         })
       )
-    }).then(() => self.clients.claim())
+    })
+    .then(() => self.clients.claim())
   )
 })
 
@@ -45,7 +59,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url)
 
-  // 1. Ne pas intercepter les requêtes Supabase (Network First)
+  // 1. REQUÊTES SUPABASE - Network First avec fallback
   if (url.hostname.includes('supabase.co')) {
     event.respondWith(
       fetch(event.request)
@@ -56,71 +70,102 @@ self.addEventListener('fetch', event => {
           })
           return response
         })
-        .catch(() => {
-          return caches.match(event.request)
-            .then(cached => {
-              if (cached) return cached
-              // Fallback pour les requêtes API
-              return new Response(JSON.stringify({ 
-                offline: true, 
-                message: 'Mode hors ligne - Données en cache' 
-              }), {
-                headers: { 'Content-Type': 'application/json' }
-              })
-            })
+        .catch(async () => {
+          const cached = await caches.match(event.request)
+          if (cached) return cached
+          // Fallback pour les requêtes API
+          return new Response(JSON.stringify({ 
+            offline: true, 
+            message: 'Mode hors ligne',
+            data: []
+          }), {
+            headers: { 'Content-Type': 'application/json' }
+          })
         })
     )
     return
   }
 
-  // 2. Fichiers statiques (Cache First)
-  if (event.request.url.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2)$/)) {
+  // 2. IMAGES - Cache First
+  if (url.pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico)$/)) {
     event.respondWith(
       caches.match(event.request)
         .then(cached => {
           if (cached) return cached
-          return fetch(event.request).then(response => {
-            const clonedResponse = response.clone()
-            caches.open(STATIC_CACHE).then(cache => {
-              cache.put(event.request, clonedResponse)
+          return fetch(event.request)
+            .then(response => {
+              const clonedResponse = response.clone()
+              caches.open(DYNAMIC_CACHE).then(cache => {
+                cache.put(event.request, clonedResponse)
+              })
+              return response
             })
-            return response
-          })
+            .catch(() => {
+              // Image par défaut si hors ligne
+              return caches.match('/icons/icon-192x192.png')
+            })
         })
     )
     return
   }
 
-  // 3. Pages HTML (Stale While Revalidate)
+  // 3. FICHIERS STATIQUES - Cache First
+  if (url.pathname.match(/\.(js|css|woff2)$/)) {
+    event.respondWith(
+      caches.match(event.request)
+        .then(cached => {
+          if (cached) return cached
+          return fetch(event.request)
+            .then(response => {
+              const clonedResponse = response.clone()
+              caches.open(STATIC_CACHE).then(cache => {
+                cache.put(event.request, clonedResponse)
+              })
+              return response
+            })
+        })
+    )
+    return
+  }
+
+  // 4. PAGES HTML - Stale While Revalidate (priorité cache)
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const clonedResponse = response.clone()
-          caches.open(DYNAMIC_CACHE).then(cache => {
-            cache.put(event.request, clonedResponse)
-          })
-          return response
+      caches.match(event.request)
+        .then(cached => {
+          // Si en cache, on le retourne immédiatement
+          // ET on met à jour en arrière-plan
+          const fetchPromise = fetch(event.request)
+            .then(response => {
+              const clonedResponse = response.clone()
+              caches.open(DYNAMIC_CACHE).then(cache => {
+                cache.put(event.request, clonedResponse)
+              })
+              return response
+            })
+            .catch(() => {
+              // Si la requête échoue, on garde le cache existant
+              return cached
+            })
+
+          // Si on a un cache, on le retourne directement
+          if (cached) {
+            // Mise à jour en arrière-plan
+            event.waitUntil(fetchPromise)
+            return cached
+          }
+
+          // Sinon on attend la requête
+          return fetchPromise
         })
         .catch(() => {
-          return caches.match(event.request)
-            .then(cached => {
-              if (cached) return cached
-              return caches.match('/offline.html')
-                .then(offlinePage => {
-                  if (offlinePage) return offlinePage
-                  return new Response('Page hors ligne', {
-                    status: 503,
-                    statusText: 'Service Unavailable'
-                  })
-                })
-            })
+          return caches.match('/offline.html')
         })
     )
     return
   }
 
-  // 4. Autres requêtes (Network First)
+  // 5. AUTRES REQUÊTES - Network First
   event.respondWith(
     fetch(event.request)
       .then(response => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProducts } from '../hooks/useProducts'
 import ImageUpload from '../components/products/ImageUpload'
-import BarcodeScanner from '../components/common/BarcodeScanner'
+import LazyImage from '../components/common/LazyImage'
 import { supabase } from '../lib/supabaseClient'
 import { 
   Plus, 
@@ -15,8 +15,6 @@ import {
   Loader2,
   Grid,
   List,
-  Barcode,
-  ScanLine,
   Eye
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -25,7 +23,6 @@ const Products = () => {
   const navigate = useNavigate()
   const { products, loading, fetchProducts, createProduct, updateProduct, deleteProduct } = useProducts()
   const [showForm, setShowForm] = useState(false)
-  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('grid')
@@ -39,8 +36,7 @@ const Products = () => {
     quantity: '',
     min_quantity: '5',
     category: '',
-    image_url: '',
-    barcode: ''
+    image_url: ''
   })
 
   useEffect(() => {
@@ -52,8 +48,7 @@ const Products = () => {
   const filteredProducts = products
     .filter(product => {
       const matchSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (product.barcode && product.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
+        (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
       const matchCategory = filterCategory === 'all' || product.category === filterCategory
       return matchSearch && matchCategory
     })
@@ -70,40 +65,6 @@ const Products = () => {
       setTempImageData(imageUrl)
     } else {
       setTempImageData(null)
-    }
-  }
-
-  const handleBarcodeScan = async (barcode) => {
-    try {
-      const existingProduct = products.find(p => p.barcode === barcode)
-
-      if (existingProduct) {
-        toast.info(`Produit existant: ${existingProduct.name}`, { duration: 3000 })
-        handleEdit(existingProduct)
-        setShowBarcodeScanner(false)
-        return
-      }
-
-      setFormData({
-        name: '',
-        description: '',
-        price: '',
-        quantity: '',
-        min_quantity: '5',
-        category: '',
-        image_url: '',
-        barcode: barcode
-      })
-
-      setEditingProduct(null)
-      setShowForm(true)
-      setShowBarcodeScanner(false)
-      
-      toast.success('Code-barres détecté ! Remplissez les informations', { duration: 3000 })
-      
-    } catch (error) {
-      console.error('Erreur scan:', error)
-      toast.error('Erreur lors du traitement du code-barres')
     }
   }
 
@@ -126,7 +87,6 @@ const Products = () => {
       price: parseFloat(formData.price),
       quantity: parseInt(formData.quantity) || 0,
       min_quantity: parseInt(formData.min_quantity) || 5,
-      barcode: formData.barcode || null,
       image_url: null
     }
 
@@ -209,8 +169,7 @@ const Products = () => {
       quantity: '',
       min_quantity: '5',
       category: '',
-      image_url: '',
-      barcode: ''
+      image_url: ''
     })
     setTempImageData(null)
   }
@@ -224,8 +183,7 @@ const Products = () => {
       quantity: product.quantity.toString(),
       min_quantity: product.min_quantity?.toString() || '5',
       category: product.category || '',
-      image_url: product.image_url || '',
-      barcode: product.barcode || ''
+      image_url: product.image_url || ''
     })
     setTempImageData(null)
     setShowForm(true)
@@ -256,13 +214,6 @@ const Products = () => {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setShowBarcodeScanner(true)}
-            className="btn-secondary flex items-center gap-2 text-sm py-2 px-3"
-          >
-            <ScanLine className="h-4 w-4" />
-            <span className="hidden sm:inline">Scanner</span>
-          </button>
-          <button
             onClick={() => {
               setEditingProduct(null)
               resetForm()
@@ -275,15 +226,6 @@ const Products = () => {
           </button>
         </div>
       </div>
-
-      {/* Barcode Scanner Modal */}
-      <BarcodeScanner
-        isOpen={showBarcodeScanner}
-        onClose={() => setShowBarcodeScanner(false)}
-        onScan={handleBarcodeScan}
-        title="Scanner un code-barres"
-        description="Scannez le code-barres d'un produit"
-      />
 
       {/* Stats rapides */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-4">
@@ -331,7 +273,7 @@ const Products = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Image */}
+              {/* Image avec compression intégrée */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Image du produit
@@ -341,30 +283,6 @@ const Products = () => {
                   currentImage={formData.image_url}
                   onImageUploaded={handleImageUploaded}
                 />
-              </div>
-
-              {/* Code-barres */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1">
-                  <Barcode className="h-4 w-4" />
-                  Code-barres
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={formData.barcode}
-                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                    className="flex-1 w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 py-2.5 px-4 text-sm"
-                    placeholder="Scannez ou entrez le code"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowBarcodeScanner(true)}
-                    className="btn-secondary px-3 flex items-center gap-1 text-sm"
-                  >
-                    <ScanLine className="h-4 w-4" />
-                  </button>
-                </div>
               </div>
 
               {/* Nom */}
@@ -549,7 +467,7 @@ const Products = () => {
         </div>
       </div>
 
-      {/* Liste des produits */}
+      {/* Liste des produits avec LazyImage */}
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
@@ -583,28 +501,15 @@ const Products = () => {
               onClick={() => navigate(`/products/${product.id}`)}
             >
               <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-700">
-                {product.image_url ? (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    onError={(e) => { e.target.style.display = 'none' }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Package className="h-12 w-12 text-gray-400" />
-                  </div>
-                )}
+                <LazyImage
+                  src={product.image_url}
+                  alt={product.name}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                />
                 {product.quantity <= product.min_quantity && (
                   <div className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
                     Stock faible
-                  </div>
-                )}
-                {product.barcode && (
-                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                    <Barcode className="h-2.5 w-2.5" />
-                    {product.barcode.slice(0, 8)}...
                   </div>
                 )}
                 <div className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -665,7 +570,6 @@ const Products = () => {
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Catégorie</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Prix</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Stock</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Code</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -678,18 +582,11 @@ const Products = () => {
                   >
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        {product.image_url ? (
-                          <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-10 h-10 object-cover rounded-lg flex-shrink-0"
-                            onError={(e) => { e.target.style.display = 'none' }}
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Package className="h-5 w-5 text-gray-400" />
-                          </div>
-                        )}
+                        <LazyImage
+                          src={product.image_url}
+                          alt={product.name}
+                          className="w-10 h-10 object-cover rounded-lg flex-shrink-0"
+                        />
                         <span className="font-medium text-gray-900 dark:text-white truncate max-w-[100px]">
                           {product.name}
                         </span>
@@ -705,9 +602,6 @@ const Products = () => {
                       <span className={`font-medium ${product.quantity <= product.min_quantity ? 'text-orange-500' : 'text-emerald-500'}`}>
                         {product.quantity}
                       </span>
-                    </td>
-                    <td className="py-3 px-4 text-right hidden lg:table-cell text-xs text-gray-400">
-                      {product.barcode ? product.barcode.slice(0, 12) : '-'}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex justify-end gap-1">

@@ -6,11 +6,13 @@ import Layout from './components/common/Layout'
 import BottomNav from './components/common/BottomNav'
 import PWAInstallPrompt from './components/common/PWAInstallPrompt'
 import ConnectionStatus from './components/common/ConnectionStatus'
+// ❌ SUPPRIMER CETTE LIGNE
+// import OfflineIndicator from './components/common/OfflineIndicator'
 import Dashboard from './pages/Dashboard'
 import Sales from './pages/Sales'
 import NewSale from './pages/NewSale'
 import Products from './pages/Products'
-import ProductDetail from './pages/ProductDetail'  // Ajout
+import ProductDetail from './pages/ProductDetail'
 import Stock from './pages/Stock'
 import DailyInventory from './pages/DailyInventory'
 import Reports from './pages/Reports'
@@ -29,7 +31,7 @@ function App() {
       <AuthProvider>
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
           <Toaster 
-            position="top-center"
+            position="bottom-center"
             toastOptions={{
               duration: 3000,
               style: {
@@ -53,6 +55,8 @@ function App() {
             }}
           />
           <ConnectionStatus />
+          {/* ❌ SUPPRIMER CETTE LIGNE */}
+          {/* <OfflineIndicator /> */}
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -63,7 +67,7 @@ function App() {
                 <Route path="sales" element={<Sales />} />
                 <Route path="sales/new" element={<NewSale />} />
                 <Route path="products" element={<Products />} />
-                <Route path="products/:id" element={<ProductDetail />} />  {/* Ajout */}
+                <Route path="products/:id" element={<ProductDetail />} />
                 <Route path="stock" element={<Stock />} />
                 <Route path="inventory" element={<DailyInventory />} />
                 <Route path="reports" element={<Reports />} />

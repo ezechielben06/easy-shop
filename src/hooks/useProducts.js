@@ -503,8 +503,8 @@ export const useProducts = () => {
     deleteProduct,
     updateStock,
     getProductBySku,
-    getProductById,        // ← NOUVEAU : récupère un produit par ID (async)
-    getProductFromState,   // ← NOUVEAU : récupère depuis le state (sync)
+    getProductById,
+    getProductFromState,
     getLowStockProducts,
     getCategories,
     getPendingChanges

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useProducts } from '../hooks/useProducts'
+import LazyImage from '../components/common/LazyImage'
 import { 
   ArrowLeft, 
   Edit2, 
@@ -176,23 +177,15 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      {/* Section Image */}
+      {/* Section Image avec LazyImage */}
       <div className="relative bg-white dark:bg-gray-800">
         <div className="relative aspect-square max-h-[450px] w-full overflow-hidden">
-          {product.image_url && !imageError ? (
-            <img
-              ref={imageRef}
-              src={product.image_url}
-              alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
-              onError={() => setImageError(true)}
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600">
-              <Package className="h-24 w-24 text-gray-400" />
-            </div>
-          )}
+          <LazyImage
+            src={product.image_url}
+            alt={product.name}
+            className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+            fallback={<Package className="h-24 w-24 text-gray-400" />}
+          />
           
           {/* Badges flottants */}
           <div className="absolute top-4 left-4 flex flex-col gap-2">
@@ -380,7 +373,7 @@ const ProductDetail = () => {
           )}
         </div>
 
-        {/* Produits similaires */}
+        {/* Produits similaires avec LazyImage */}
         {relatedProducts.length > 0 && (
           <div className="pt-2">
             <div className="flex items-center justify-between mb-3">
@@ -400,19 +393,11 @@ const ProductDetail = () => {
                   className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all active:scale-[0.98]"
                 >
                   <div className="aspect-square bg-gray-100 dark:bg-gray-700 overflow-hidden">
-                    {p.image_url ? (
-                      <img
-                        src={p.image_url}
-                        alt={p.name}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        onError={(e) => { e.target.style.display = 'none' }}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package className="h-8 w-8 text-gray-400" />
-                      </div>
-                    )}
+                    <LazyImage
+                      src={p.image_url}
+                      alt={p.name}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    />
                   </div>
                   <div className="p-2.5">
                     <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
@@ -436,7 +421,7 @@ const ProductDetail = () => {
         )}
       </div>
 
-      {/* Barre d'action flottante en bas - avec marge pour la navigation */}
+      {/* Barre d'action flottante en bas */}
       <div className="fixed bottom-16 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200/50 dark:border-gray-700/50 shadow-lg">
         <div className="px-4 py-3 max-w-2xl mx-auto">
           <div className="flex items-center gap-3">

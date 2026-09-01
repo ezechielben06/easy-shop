@@ -23,7 +23,12 @@ import {
   Sparkles,
   Clock,
   Eye,
-  Info
+  Info,
+  Star,
+  StarHalf,
+  TrendingUp,
+  Truck,
+  Shield
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -40,9 +45,8 @@ const ProductDetail = () => {
   const [relatedProducts, setRelatedProducts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('details')
-  const [imageError, setImageError] = useState(false)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
-  const imageRef = useRef(null)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   useEffect(() => {
     loadProduct()
@@ -50,7 +54,6 @@ const ProductDetail = () => {
 
   const loadProduct = async () => {
     setIsLoading(true)
-    setImageError(false)
     
     try {
       await fetchProducts()
@@ -64,9 +67,10 @@ const ProductDetail = () => {
       if (found) {
         setProduct(found)
         
+        // Produits similaires - meilleur algorithme
         const related = products
-          .filter(p => p.id !== id && p.category === found.category)
-          .slice(0, 4)
+          .filter(p => p.id !== id && (p.category === found.category || p.category?.toLowerCase().includes(found.category?.toLowerCase() || '')))
+          .slice(0, 6)
         setRelatedProducts(related)
       } else {
         toast.error('Produit non trouvé')
@@ -177,7 +181,7 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      {/* Section Image avec LazyImage */}
+      {/* Section Image */}
       <div className="relative bg-white dark:bg-gray-800">
         <div className="relative aspect-square max-h-[450px] w-full overflow-hidden">
           <LazyImage
@@ -190,7 +194,7 @@ const ProductDetail = () => {
           {/* Badges flottants */}
           <div className="absolute top-4 left-4 flex flex-col gap-2">
             {isNew && (
-              <span className="bg-blue-500 text-white text-xs font-medium px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
+              <span className="bg-blue-500 text-white text-xs font-medium px-3 py-1 rounded-full shadow-lg flex items-center gap-1 animate-pulse">
                 <Sparkles className="h-3 w-3" />
                 Nouveau
               </span>
@@ -232,7 +236,7 @@ const ProductDetail = () => {
               {product.name}
             </h2>
             {product.category && (
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="inline-flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2.5 py-0.5 rounded-full">
                   <Tag className="h-3 w-3" />
                   {product.category}
@@ -373,31 +377,41 @@ const ProductDetail = () => {
           )}
         </div>
 
-        {/* Produits similaires avec LazyImage */}
+        {/* Produits similaires - AMÉLIORÉ */}
         {relatedProducts.length > 0 && (
           <div className="pt-2">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
                 <Package className="h-4 w-4 text-blue-500" />
                 Produits similaires
+                <span className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full ml-1">
+                  {relatedProducts.length}
+                </span>
               </h3>
               <Link to="/products" className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-0.5">
                 Voir tout <ChevronRight className="h-3 w-3" />
               </Link>
             </div>
+            
+            {/* Grille des produits similaires */}
             <div className="grid grid-cols-2 gap-3">
-              {relatedProducts.map((p) => (
+              {relatedProducts.slice(0, 4).map((p) => (
                 <Link
                   key={p.id}
                   to={`/products/${p.id}`}
-                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all active:scale-[0.98]"
+                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all active:scale-[0.98] group"
                 >
-                  <div className="aspect-square bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                  <div className="aspect-square bg-gray-100 dark:bg-gray-700 overflow-hidden relative">
                     <LazyImage
                       src={p.image_url}
                       alt={p.name}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
+                    {p.quantity <= p.min_quantity && (
+                      <div className="absolute top-1 right-1 bg-orange-500/90 text-white text-[8px] px-1.5 py-0.5 rounded-full">
+                        ⚠️
+                      </div>
+                    )}
                   </div>
                   <div className="p-2.5">
                     <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
@@ -417,6 +431,19 @@ const ProductDetail = () => {
                 </Link>
               ))}
             </div>
+
+            {/* Si plus de 4 produits similaires, afficher un lien "Voir plus" */}
+            {relatedProducts.length > 4 && (
+              <div className="text-center mt-3">
+                <Link 
+                  to="/products" 
+                  className="text-xs text-blue-500 hover:text-blue-600 inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-4 py-1.5 rounded-full"
+                >
+                  Voir tous les produits similaires
+                  <ChevronRight className="h-3 w-3" />
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>

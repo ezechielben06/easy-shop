@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useProducts } from '../hooks/useProducts'
 import LazyImage from '../components/common/LazyImage'
@@ -9,7 +9,6 @@ import {
   Package, 
   AlertTriangle,
   ShoppingBag,
-  Barcode,
   Calendar,
   CheckCircle,
   XCircle,
@@ -23,12 +22,7 @@ import {
   Sparkles,
   Clock,
   Eye,
-  Info,
-  Star,
-  StarHalf,
-  TrendingUp,
-  Truck,
-  Shield
+  Info
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -46,7 +40,6 @@ const ProductDetail = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('details')
   const [isAddingToCart, setIsAddingToCart] = useState(false)
-  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   useEffect(() => {
     loadProduct()
@@ -56,9 +49,9 @@ const ProductDetail = () => {
     setIsLoading(true)
     
     try {
-      await fetchProducts()
+      const allProducts = await fetchProducts()
       
-      let found = products.find(p => p.id === id)
+      let found = allProducts.find(p => p.id === id)
       
       if (!found) {
         found = await getProductById(id)
@@ -67,11 +60,24 @@ const ProductDetail = () => {
       if (found) {
         setProduct(found)
         
-        // Produits similaires - meilleur algorithme
-        const related = products
-          .filter(p => p.id !== id && (p.category === found.category || p.category?.toLowerCase().includes(found.category?.toLowerCase() || '')))
-          .slice(0, 6)
-        setRelatedProducts(related)
+        let related = []
+        
+        if (found.category) {
+          related = allProducts.filter(p => 
+            p.id !== id && 
+            p.category === found.category
+          )
+        }
+        
+        if (related.length < 4) {
+          const otherProducts = allProducts
+            .filter(p => p.id !== id && !related.includes(p))
+            .slice(0, 6 - related.length)
+          related = [...related, ...otherProducts]
+        }
+        
+        setRelatedProducts(related.slice(0, 6))
+        
       } else {
         toast.error('Produit non trouvé')
         navigate('/products')
@@ -339,10 +345,10 @@ const ProductDetail = () => {
                   </p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 text-center">
-                  <Barcode className="h-4 w-4 mx-auto text-gray-400 mb-1" />
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400">Code</p>
+                  <Tag className="h-4 w-4 mx-auto text-gray-400 mb-1" />
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">Catégorie</p>
                   <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                    {product.barcode || '---'}
+                    {product.category || '---'}
                   </p>
                 </div>
               </div>
@@ -377,7 +383,7 @@ const ProductDetail = () => {
           )}
         </div>
 
-        {/* Produits similaires - AMÉLIORÉ */}
+        {/* Produits similaires */}
         {relatedProducts.length > 0 && (
           <div className="pt-2">
             <div className="flex items-center justify-between mb-3">
@@ -393,7 +399,6 @@ const ProductDetail = () => {
               </Link>
             </div>
             
-            {/* Grille des produits similaires */}
             <div className="grid grid-cols-2 gap-3">
               {relatedProducts.slice(0, 4).map((p) => (
                 <Link
@@ -432,7 +437,6 @@ const ProductDetail = () => {
               ))}
             </div>
 
-            {/* Si plus de 4 produits similaires, afficher un lien "Voir plus" */}
             {relatedProducts.length > 4 && (
               <div className="text-center mt-3">
                 <Link 
@@ -444,6 +448,23 @@ const ProductDetail = () => {
                 </Link>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Message si aucun produit similaire */}
+        {relatedProducts.length === 0 && (
+          <div className="pt-2">
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 text-center border border-gray-200 dark:border-gray-700">
+              <Package className="h-8 w-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">Aucun produit similaire trouvé</p>
+              <Link 
+                to="/products" 
+                className="text-xs text-blue-500 hover:text-blue-600 inline-flex items-center gap-1 mt-2"
+              >
+                Voir tous les produits
+                <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
           </div>
         )}
       </div>
